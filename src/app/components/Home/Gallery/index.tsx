@@ -5,28 +5,34 @@ import Masonry from "react-masonry-css";
 import { Icon } from "@iconify/react";
 import clsx from "clsx";
 
+/* ------------------------ Type Definitions ------------------------ */
+type PackageType = {
+  name: string;
+  price: string;
+  src: string;
+  description: string;
+  items?: string[];
+  sweets?: string[];
+};
+
+type AddOnMenuType = {
+  vegetarianSnacks: string[];
+  vegetarianChoices: string[];
+};
+
+/* ------------------------ Component ------------------------ */
 const Gallery = () => {
   const [isOrderOpen, setIsOrderOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedPackage, setSelectedPackage] = useState<any>(null);
+  const [selectedPackage, setSelectedPackage] = useState<PackageType | null>(
+    null
+  );
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [finalQuote, setFinalQuote] = useState<number>(0);
 
-  const openOrder = (pkg: any) => {
-    setSelectedPackage(pkg);
-    setIsOrderOpen(true);
-    setCurrentStep(1);
-    setSelectedItems([]);
-    setSelectedAddOns([]);
-    setFinalQuote(parseFloat(pkg.price));
-  };
-
-  const closeOrder = () => {
-    setIsOrderOpen(false);
-  };
-
-  const galleryImages = [
+  /* ------------------------ Data ------------------------ */
+  const galleryImages: PackageType[] = [
     {
       name: "Vegetarian",
       price: "16.99",
@@ -64,7 +70,7 @@ const Gallery = () => {
     },
   ];
 
-  const addOnMenu = {
+  const addOnMenu: AddOnMenuType = {
     vegetarianSnacks: [
       "Paneer Pakora",
       "Samosa",
@@ -81,6 +87,20 @@ const Gallery = () => {
     ],
   };
 
+  /* ------------------------ Handlers ------------------------ */
+  const openOrder = (pkg: PackageType) => {
+    setSelectedPackage(pkg);
+    setIsOrderOpen(true);
+    setCurrentStep(1);
+    setSelectedItems([]);
+    setSelectedAddOns([]);
+    setFinalQuote(parseFloat(pkg.price));
+  };
+
+  const closeOrder = () => {
+    setIsOrderOpen(false);
+  };
+
   const toggleSelection = (item: string, type: "item" | "addon") => {
     if (type === "item") {
       setSelectedItems((prev) =>
@@ -90,13 +110,15 @@ const Gallery = () => {
       setSelectedAddOns((prev) =>
         prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
       );
-      setFinalQuote((q) => (selectedAddOns.includes(item) ? q - 2.5 : q + 2.5)); // each add-on = +$2.5
+
+      setFinalQuote((q) => (selectedAddOns.includes(item) ? q - 2.5 : q + 2.5)); // Each add-on adds $2.5
     }
   };
 
   const nextStep = () => setCurrentStep((s) => Math.min(3, s + 1));
   const prevStep = () => setCurrentStep((s) => Math.max(1, s - 1));
 
+  /* ------------------------ Render ------------------------ */
   return (
     <section id="menu" className="scroll-mt-20">
       <div className="container">
@@ -109,6 +131,7 @@ const Gallery = () => {
           </h2>
         </div>
 
+        {/* Masonry Layout */}
         <div className="my-16 px-4 md:px-6">
           <Masonry
             breakpointCols={{ default: 3, 1100: 2, 700: 1 }}
@@ -143,7 +166,7 @@ const Gallery = () => {
                     {pkg.description}
                   </p>
                   <ul className="text-gray-700 text-sm space-y-1 mb-3">
-                    {pkg.items?.map((i, idx) => (
+                    {pkg.items?.map((i: string, idx: number) => (
                       <li key={idx}>• {i}</li>
                     ))}
                   </ul>
@@ -154,7 +177,7 @@ const Gallery = () => {
                         Sweets Options
                       </p>
                       <ul className="text-gray-700 text-sm space-y-1 mb-3">
-                        {pkg.sweets.map((s, si) => (
+                        {pkg.sweets.map((s: string, si: number) => (
                           <li key={si}>• {s}</li>
                         ))}
                       </ul>
@@ -173,8 +196,8 @@ const Gallery = () => {
           </Masonry>
         </div>
 
-        {/* ORDER FLOW MODAL */}
-        {isOrderOpen && (
+        {/* Order Flow Modal */}
+        {isOrderOpen && selectedPackage && (
           <div
             className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
             onClick={closeOrder}
@@ -190,7 +213,7 @@ const Gallery = () => {
                 ✕
               </button>
 
-              {/* STEP INDICATOR */}
+              {/* Step Indicator */}
               <div className="flex justify-center gap-3 mb-6">
                 {[1, 2, 3].map((step) => (
                   <div
@@ -205,7 +228,7 @@ const Gallery = () => {
                 ))}
               </div>
 
-              {/* STEP CONTENT */}
+              {/* Step Content */}
               {currentStep === 1 && (
                 <div className="animate-slideIn">
                   <h3 className="text-xl font-semibold text-center mb-3 text-primary">
@@ -215,7 +238,7 @@ const Gallery = () => {
                     Choose your favorites from the package items below:
                   </p>
                   <div className="grid grid-cols-2 gap-3">
-                    {selectedPackage.items?.map((item, i) => (
+                    {selectedPackage.items?.map((item: string, i: number) => (
                       <button
                         key={i}
                         onClick={() => toggleSelection(item, "item")}
@@ -245,7 +268,7 @@ const Gallery = () => {
                     {[
                       ...addOnMenu.vegetarianSnacks,
                       ...addOnMenu.vegetarianChoices,
-                    ].map((addon, i) => (
+                    ].map((addon: string, i: number) => (
                       <button
                         key={i}
                         onClick={() => toggleSelection(addon, "addon")}
@@ -283,7 +306,7 @@ const Gallery = () => {
                 </div>
               )}
 
-              {/* FOOTER BUTTONS */}
+              {/* Footer Buttons */}
               <div className="mt-6 flex justify-between">
                 {currentStep > 1 ? (
                   <button

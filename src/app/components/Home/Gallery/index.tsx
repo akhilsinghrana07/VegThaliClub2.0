@@ -2,123 +2,150 @@
 import Image from "next/image";
 import { useState } from "react";
 import Masonry from "react-masonry-css";
-import { Icon } from "@iconify/react";
 import clsx from "clsx";
 
-/* ------------------------ Type Definitions ------------------------ */
+/* -------------------- Types -------------------- */
 type PackageType = {
   name: string;
   price: string;
   src: string;
   description: string;
-  items?: string[];
-  sweets?: string[];
+  baseItems: string[];
 };
 
 type AddOnMenuType = {
   vegetarianSnacks: string[];
   vegetarianChoices: string[];
+  chineseSnacks: string[];
+  paneerChoices: string[];
+  dessertChoices: string[];
 };
 
-/* ------------------------ Component ------------------------ */
+/* -------------------- Component -------------------- */
 const Gallery = () => {
   const [isOrderOpen, setIsOrderOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPackage, setSelectedPackage] = useState<PackageType | null>(
     null
   );
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
+
+  // Selections
+  const [rotiChoice, setRotiChoice] = useState<string>("");
+  const [selectedMains, setSelectedMains] = useState<string[]>([]);
+  const [selectedDessert, setSelectedDessert] = useState<string>("");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [finalQuote, setFinalQuote] = useState<number>(0);
 
-  /* ------------------------ Data ------------------------ */
+  /* -------------------- Data -------------------- */
   const galleryImages: PackageType[] = [
     {
-      name: "Vegetarian",
+      name: "Signature Feast",
       price: "16.99",
       src: "/images/res/1.jpg",
-      description: "Pick 3 Dishes & 1 Dessert",
-      items: ["Boondi Raita", "Jeera Rice", "Salad", "Tandoori Naan or Roti"],
+      description: "Pick 3 Mains & 1 Dessert — perfect for casual gatherings.",
+      baseItems: ["Boondi Raita", "Jeera Rice", "Salad", "Roti or Naan"],
     },
     {
-      name: "Snacks & Main Course",
+      name: "Royal Celebration",
       price: "25.00",
       src: "/images/res/2.jpg",
-      description: "Pick 2 Sweets & 2 Items",
-      sweets: [
-        "Gulab Jamun",
-        "Khoya Barfi",
-        "Besan Barfi",
-        "Badam Barfi",
-        "Gajar Barfi",
-      ],
-      items: [
-        "Aloo Tikki",
-        "Gobi Pakoda",
-        "Palak Pakoda",
-        "Mix Veg Pakora",
-        "Samosa",
-        "Spring Roll",
-      ],
+      description: "Includes 4 Mains, 1 Dessert, and Premium Snacks.",
+      baseItems: ["Boondi Raita", "Jeera Rice", "Salad", "Tandoori Naan"],
     },
     {
-      name: "Vegetarian Premium",
+      name: "Grand Deluxe",
       price: "30.00",
       src: "/images/res/3.jpg",
-      description: "Pick 4 Veg Snacks, 4 Main Course & 1 Dessert",
-      items: ["Rice", "Raita", "Salad", "Plain Naan or Tandoori Naan"],
+      description:
+        "Our ultimate catering combo — 5 Mains, 2 Desserts, full service.",
+      baseItems: ["Boondi Raita", "Jeera Rice", "Salad", "Tandoori Naan"],
     },
   ];
 
   const addOnMenu: AddOnMenuType = {
     vegetarianSnacks: [
-      "Paneer Pakora",
+      "Aloo Tikki",
       "Samosa",
-      "Tandoori Soya Chaap",
+      "Palak Pakora",
+      "Veg Pakora",
+      "Paneer Pakora",
       "Chat Papri",
+      "Spring Roll",
       "Dahi Bhalla",
+      "Bhel Puri",
+      "Pani Puri",
+      "Chilli Paneer",
+      "Veg Manchurian",
+      "Tandoori Soya Chaap",
+    ],
+    chineseSnacks: [
+      "Manchurian",
+      "Veg Chilli",
+      "Chilli Paneer",
+      "Chilli Potato",
+      "Fried Rice (Veg)",
+      "Noodles (Veg)",
+    ],
+    paneerChoices: [
+      "Shahi Paneer",
+      "Palak Saag Paneer",
+      "Mutter Paneer",
+      "Malai Kofta",
     ],
     vegetarianChoices: [
       "Mix Veg",
+      "Kebab Curry",
+      "Kadhi Pakoda",
       "Aloo Gobhi",
-      "Karahi Soya Chaap",
       "Palak Saag",
+      "Karahi Soya Chaap",
+      "Veg Manchurian",
+      "Soya Chaap Tikka Masala",
       "Channa Masala",
     ],
+    dessertChoices: ["Gajjar Halwa", "Gulab Jamun", "Suji Halwa"],
   };
 
-  /* ------------------------ Handlers ------------------------ */
+  /* -------------------- Handlers -------------------- */
   const openOrder = (pkg: PackageType) => {
     setSelectedPackage(pkg);
     setIsOrderOpen(true);
     setCurrentStep(1);
-    setSelectedItems([]);
+    setRotiChoice("");
+    setSelectedMains([]);
+    setSelectedDessert("");
     setSelectedAddOns([]);
     setFinalQuote(parseFloat(pkg.price));
   };
 
-  const closeOrder = () => {
-    setIsOrderOpen(false);
+  const closeOrder = () => setIsOrderOpen(false);
+
+  const toggleMain = (dish: string) => {
+    setSelectedMains((prev) => {
+      if (prev.includes(dish)) return prev.filter((d) => d !== dish);
+      if (prev.length < 3) return [...prev, dish];
+      return prev; // limit to 3
+    });
   };
 
-  const toggleSelection = (item: string, type: "item" | "addon") => {
-    if (type === "item") {
-      setSelectedItems((prev) =>
-        prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
-      );
-    } else {
-      setSelectedAddOns((prev) =>
-        prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
-      );
-
-      setFinalQuote((q) => (selectedAddOns.includes(item) ? q - 2.5 : q + 2.5)); // Each add-on adds $2.5
-    }
+  const toggleAddOn = (item: string) => {
+    setSelectedAddOns((prev) =>
+      prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
+    );
+    setFinalQuote((q) => (selectedAddOns.includes(item) ? q - 2.5 : q + 2.5));
   };
 
-  const nextStep = () => setCurrentStep((s) => Math.min(3, s + 1));
+  const nextStep = () => setCurrentStep((s) => Math.min(5, s + 1));
   const prevStep = () => setCurrentStep((s) => Math.max(1, s - 1));
 
-  /* ------------------------ Render ------------------------ */
+  const canProceed = () => {
+    if (currentStep === 1) return !!rotiChoice;
+    if (currentStep === 2) return selectedMains.length === 3;
+    if (currentStep === 3) return !!selectedDessert;
+    return true;
+  };
+
+  /* -------------------- Render -------------------- */
   return (
     <section id="menu" className="scroll-mt-20">
       <div className="container">
@@ -131,7 +158,7 @@ const Gallery = () => {
           </h2>
         </div>
 
-        {/* Masonry Layout */}
+        {/* Gallery Cards */}
         <div className="my-16 px-4 md:px-6">
           <Masonry
             breakpointCols={{ default: 3, 1100: 2, 700: 1 }}
@@ -141,8 +168,10 @@ const Gallery = () => {
             {galleryImages.map((pkg, index) => (
               <div
                 key={index}
-                className="group rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 bg-white border border-green-100"
+                onClick={() => openOrder(pkg)}
+                className="group cursor-pointer rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 bg-white border border-green-100 hover:-translate-y-1"
               >
+                {/* Image Section */}
                 <div className="relative h-64 w-full overflow-hidden">
                   <Image
                     src={pkg.src}
@@ -161,42 +190,37 @@ const Gallery = () => {
                   </div>
                 </div>
 
+                {/* Card Body */}
                 <div className="p-6">
                   <p className="text-lg font-semibold text-gray-900 mb-3">
                     {pkg.description}
                   </p>
-                  <ul className="text-gray-700 text-sm space-y-1 mb-3">
-                    {pkg.items?.map((i: string, idx: number) => (
-                      <li key={idx}>• {i}</li>
-                    ))}
-                  </ul>
 
-                  {pkg.sweets && (
-                    <>
-                      <p className="text-base font-semibold text-primary mb-1">
-                        Sweets Options
-                      </p>
-                      <ul className="text-gray-700 text-sm space-y-1 mb-3">
-                        {pkg.sweets.map((s: string, si: number) => (
-                          <li key={si}>• {s}</li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
+                  {/* Included Items */}
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
+                    <p className="text-green-700 text-sm font-medium mb-2">
+                      Included in Every Meal:
+                    </p>
+                    <ul className="text-gray-700 text-sm space-y-1">
+                      <li>• Boondi Raita</li>
+                      <li>• Jeera Rice</li>
+                      <li>• Salad</li>
+                      {pkg.name === "Signature Feast" && (
+                        <li>• Roti or Naan</li>
+                      )}
+                    </ul>
+                  </div>
 
-                  <button
-                    onClick={() => openOrder(pkg)}
-                    className="inline-block text-center w-full rounded-full bg-primary text-white text-sm font-medium py-2.5 hover:bg-primary/90 transition-all duration-300"
-                  >
-                    Order Now
-                  </button>
+                  <p className="text-primary text-sm font-medium mt-2">
+                    Tap anywhere to customize your feast →
+                  </p>
                 </div>
               </div>
             ))}
           </Masonry>
         </div>
 
-        {/* Order Flow Modal */}
+        {/* Modal */}
         {isOrderOpen && selectedPackage && (
           <div
             className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
@@ -213,9 +237,9 @@ const Gallery = () => {
                 ✕
               </button>
 
-              {/* Step Indicator */}
+              {/* Step Indicators */}
               <div className="flex justify-center gap-3 mb-6">
-                {[1, 2, 3].map((step) => (
+                {[1, 2, 3, 4, 5].map((step) => (
                   <div
                     key={step}
                     className={clsx(
@@ -228,50 +252,102 @@ const Gallery = () => {
                 ))}
               </div>
 
-              {/* Step Content */}
+              {/* Step 1 - Roti/Naan */}
               {currentStep === 1 && (
-                <div className="animate-slideIn">
-                  <h3 className="text-xl font-semibold text-center mb-3 text-primary">
-                    Select Your Dishes
+                <div className="animate-slideIn text-center">
+                  <h3 className="text-xl font-semibold text-primary mb-3">
+                    Choose Your Bread
                   </h3>
-                  <p className="text-sm text-gray-600 text-center mb-4">
-                    Choose your favorites from the package items below:
+                  <p className="text-gray-600 text-sm mb-4">
+                    Select one option from your base package:
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {selectedPackage.items?.map((item: string, i: number) => (
+                  <div className="flex justify-center gap-4">
+                    {["Roti", "Tandoori Naan"].map((b) => (
                       <button
-                        key={i}
-                        onClick={() => toggleSelection(item, "item")}
+                        key={b}
+                        onClick={() => setRotiChoice(b)}
                         className={clsx(
-                          "border rounded-full py-2 px-4 text-sm transition-all",
-                          selectedItems.includes(item)
+                          "border rounded-full px-5 py-2 text-sm transition-all",
+                          rotiChoice === b
                             ? "bg-primary text-white"
                             : "border-gray-300 hover:border-primary"
                         )}
                       >
-                        {item}
+                        {b}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
 
+              {/* Step 2 - Main Dishes */}
               {currentStep === 2 && (
                 <div className="animate-slideIn">
-                  <h3 className="text-xl font-semibold text-center mb-3 text-primary">
-                    Add-On Selections
+                  <h3 className="text-xl font-semibold text-primary mb-3 text-center">
+                    Select 3 Main Dishes
                   </h3>
-                  <p className="text-sm text-gray-600 text-center mb-4">
-                    Pick any extra snacks or dishes for $2.50 each:
+                  <div className="grid grid-cols-2 gap-2">
+                    {addOnMenu.vegetarianChoices.map((dish) => (
+                      <button
+                        key={dish}
+                        onClick={() => toggleMain(dish)}
+                        className={clsx(
+                          "border rounded-full py-2 px-3 text-sm transition-all",
+                          selectedMains.includes(dish)
+                            ? "bg-primary text-white"
+                            : "border-gray-300 hover:border-primary"
+                        )}
+                      >
+                        {dish}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 text-center mt-3">
+                    {selectedMains.length}/3 selected
                   </p>
+                </div>
+              )}
+
+              {/* Step 3 - Dessert */}
+              {currentStep === 3 && (
+                <div className="animate-slideIn text-center">
+                  <h3 className="text-xl font-semibold text-primary mb-3">
+                    Select 1 Dessert
+                  </h3>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {addOnMenu.dessertChoices.map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => setSelectedDessert(d)}
+                        className={clsx(
+                          "border rounded-full py-2 px-4 text-sm transition-all",
+                          selectedDessert === d
+                            ? "bg-primary text-white"
+                            : "border-gray-300 hover:border-primary"
+                        )}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4 - Add-Ons */}
+              {currentStep === 4 && (
+                <div className="animate-slideIn">
+                  <h3 className="text-xl font-semibold text-primary mb-3 text-center">
+                    Add-Ons ($2.50 each)
+                  </h3>
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       ...addOnMenu.vegetarianSnacks,
-                      ...addOnMenu.vegetarianChoices,
-                    ].map((addon: string, i: number) => (
+                      ...addOnMenu.chineseSnacks,
+                      ...addOnMenu.paneerChoices,
+                    ].map((addon) => (
                       <button
-                        key={i}
-                        onClick={() => toggleSelection(addon, "addon")}
+                        key={addon}
+                        onClick={() => toggleAddOn(addon)}
                         className={clsx(
                           "border rounded-full py-2 px-3 text-sm transition-all",
                           selectedAddOns.includes(addon)
@@ -285,22 +361,52 @@ const Gallery = () => {
                   </div>
                 </div>
               )}
-
-              {currentStep === 3 && (
+              {/* Step 5 - Summary */}
+              {currentStep === 5 && (
                 <div className="animate-slideIn text-center">
                   <h3 className="text-xl font-semibold text-primary mb-4">
-                    Your Quote Summary
+                    Quote Summary
                   </h3>
+
+                  {/* Included Items */}
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4 inline-block text-left">
+                    <p className="text-green-700 text-sm font-medium mb-2 text-center">
+                      Included in Every Meal:
+                    </p>
+                    <ul className="text-gray-700 text-sm space-y-1 list-disc list-inside">
+                      <li>Boondi Raita</li>
+                      <li>Jeera Rice</li>
+                      <li>Salad</li>
+                      {selectedPackage?.name === "Signature Feast" && (
+                        <li>Roti or Naan</li>
+                      )}
+                    </ul>
+                  </div>
+
+                  {/* User Selections */}
                   <p className="text-gray-700 text-sm mb-2">
-                    Base Package: <strong>${selectedPackage.price}</strong>
+                    Bread: <strong>{rotiChoice}</strong>
                   </p>
                   <p className="text-gray-700 text-sm mb-2">
-                    Add-Ons Selected: <strong>{selectedAddOns.length}</strong>
+                    Mains: <strong>{selectedMains.join(", ")}</strong>
                   </p>
-                  <p className="text-lg font-semibold text-green-700 mb-4">
+                  <p className="text-gray-700 text-sm mb-2">
+                    Dessert: <strong>{selectedDessert}</strong>
+                  </p>
+                  <p className="text-gray-700 text-sm mb-2">
+                    Add-Ons:{" "}
+                    <strong>
+                      {selectedAddOns.length
+                        ? selectedAddOns.join(", ")
+                        : "None"}
+                    </strong>
+                  </p>
+
+                  {/* Final Quote */}
+                  <p className="text-lg font-semibold text-green-700 mt-3">
                     Final Quote: ${finalQuote.toFixed(2)} / person
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs text-gray-500 mt-2">
                     We’ll contact you soon to confirm your order preferences.
                   </p>
                 </div>
@@ -318,10 +424,17 @@ const Gallery = () => {
                 ) : (
                   <span />
                 )}
-                {currentStep < 3 ? (
+
+                {currentStep < 5 ? (
                   <button
+                    disabled={!canProceed()}
                     onClick={nextStep}
-                    className="px-5 py-2 bg-primary text-white rounded-full hover:bg-primary/90 text-sm"
+                    className={clsx(
+                      "px-5 py-2 rounded-full text-sm transition-all",
+                      canProceed()
+                        ? "bg-primary text-white hover:bg-primary/90"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    )}
                   >
                     Next
                   </button>

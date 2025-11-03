@@ -185,11 +185,11 @@ const Footer: FC = () => {
               <h3 className="font-semibold text-lg mt-4">1. Service Nature</h3>
               <p>
                 Veg Thali Club is a vegetarian food delivery and catering
-                facilitator. We partner with trusted local kitchens and catering
-                vendors to prepare the food you order. We do not cook, prepare,
-                or package food ourselves . Our role is limited to accepting
-                orders, providing proprietary recipes, coordinating with
-                vendors, and ensuring timely delivery.
+                facilitator powered by a network of trusted cloud kitchens and
+                local catering partners. We ensure every meal follows our
+                proprietary recipes and quality standards, coordinating closely
+                with our partner kitchens to deliver fresh, authentic, and
+                timely vegetarian dishes for every occasion.
               </p>
 
               <h3 className="font-semibold text-lg mt-4">

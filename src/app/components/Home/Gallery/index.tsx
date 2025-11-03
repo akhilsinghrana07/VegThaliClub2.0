@@ -34,6 +34,7 @@ const Gallery = () => {
   const [selectedMains, setSelectedMains] = useState<string[]>([]);
   const [selectedDessert, setSelectedDessert] = useState<string>("");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const [includeEcoSet, setIncludeEcoSet] = useState(false);
   const [finalQuote, setFinalQuote] = useState<number>(0);
 
   /* -------------------- Data -------------------- */
@@ -115,6 +116,7 @@ const Gallery = () => {
     setSelectedMains([]);
     setSelectedDessert("");
     setSelectedAddOns([]);
+    setIncludeEcoSet(false);
     setFinalQuote(parseFloat(pkg.price));
   };
 
@@ -133,6 +135,11 @@ const Gallery = () => {
       prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]
     );
     setFinalQuote((q) => (selectedAddOns.includes(item) ? q - 2.5 : q + 2.5));
+  };
+
+  const toggleEcoOption = () => {
+    setIncludeEcoSet((prev) => !prev);
+    setFinalQuote((q) => (includeEcoSet ? q - 0.99 : q + 0.99));
   };
 
   const nextStep = () => setCurrentStep((s) => Math.min(5, s + 1));
@@ -361,6 +368,7 @@ const Gallery = () => {
                   </div>
                 </div>
               )}
+
               {/* Step 5 - Summary */}
               {currentStep === 5 && (
                 <div className="animate-slideIn text-center">
@@ -401,6 +409,14 @@ const Gallery = () => {
                         : "None"}
                     </strong>
                   </p>
+                  <p className="text-gray-700 text-sm mb-2">
+                    Eco-Friendly Set:{" "}
+                    <strong>
+                      {includeEcoSet
+                        ? "Included (+$0.99/person)"
+                        : "Not included"}
+                    </strong>
+                  </p>
 
                   {/* Final Quote */}
                   <p className="text-lg font-semibold text-green-700 mt-3">
@@ -411,6 +427,24 @@ const Gallery = () => {
                   </p>
                 </div>
               )}
+
+              {/* Eco-Friendly Option */}
+              <div className="mt-5 border border-green-200 bg-green-50 rounded-xl p-3 text-left flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="ecoSet"
+                  checked={includeEcoSet}
+                  onChange={toggleEcoOption}
+                  className="mt-1 accent-green-600 cursor-pointer"
+                />
+                <label htmlFor="ecoSet" className="text-sm text-gray-700">
+                  <strong>Eco-friendly disposable set</strong> — includes
+                  compartment paper plates, glasses, napkins, spoons & forks{" "}
+                  <span className="text-green-700 font-semibold">
+                    (+$0.99/person)
+                  </span>
+                </label>
+              </div>
 
               {/* Footer Buttons */}
               <div className="mt-6 flex justify-between">

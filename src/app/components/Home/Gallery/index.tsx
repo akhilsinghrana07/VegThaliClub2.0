@@ -172,7 +172,7 @@ const Gallery = () => {
   /* -------------------- Package List -------------------- */
   const galleryImages: PackageType[] = [
     {
-      name: "Veg Snacks Only",
+      name: "2 Veg Snacks",
       price: "16.99",
       src: "/images/res/0.png",
       description: "Pick 2 Vegetarian Snacks",

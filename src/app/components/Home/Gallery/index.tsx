@@ -172,7 +172,7 @@ const Gallery = () => {
   /* -------------------- Package List -------------------- */
   const galleryImages: PackageType[] = [
     {
-      name: "2 Veg Snacks",
+      name: "2 Veg Snacks Package",
       price: "16.99",
       src: "/images/res/0.png",
       description: "Pick 2 Vegetarian Snacks",
@@ -186,7 +186,7 @@ const Gallery = () => {
       ],
     },
     {
-      name: "3 Snacks Package",
+      name: "3 Veg Snacks Package",
       price: "19.99",
       src: "/images/res/7.jpg",
       description: "Pick 3 Vegetarian Snacks",

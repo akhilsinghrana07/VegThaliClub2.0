@@ -8,9 +8,9 @@ const Hero = () => {
       <div className="container xl:pt-7 pt-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 items-center">
           <div className="lg:col-span-6">
-            <h1 className="font-semibold mb-5 text-black lg:text-start text-center sm:leading-20 leading-16">
+            <h2 className="font-semibold mb-5 text-black lg:text-start text-center sm:leading-16 leading-16">
               Bringing the Joy of Pure Veg Feasts to Every Occasion
-            </h1>
+            </h2>
             <p className="text-black/55 text-lg font-normal mb-10 lg:text-start text-center">
               Elevate your celebration with handcrafted vegetarian dishes, rich
               in flavor, freshness, and authenticity.

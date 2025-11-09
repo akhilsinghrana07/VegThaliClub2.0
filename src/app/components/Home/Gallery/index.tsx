@@ -9,6 +9,7 @@ type StepConfig = {
   category?: keyof AddOnMenuType;
   maxSelections?: number;
   isBreadChoice?: boolean;
+  isWeightInput?: boolean; // NEW for Dhokla
 };
 
 type PackageType = {
@@ -16,8 +17,10 @@ type PackageType = {
   price: string;
   src: string;
   description: string;
+  description2?: string; // ✅ Optional: used only for Khaman/Dhokla
   baseItems: string[];
   steps: StepConfig[];
+  isWeightBased?: boolean;
 };
 
 type AddOnMenuType = {
@@ -35,6 +38,7 @@ type FormDataType = {
   email: string;
   partySize: number;
   message: string;
+  weightKg?: number; // NEW for Gujju special
 };
 
 /* -------------------- IndexedDB helpers -------------------- */
@@ -112,6 +116,7 @@ const Gallery = () => {
     email: "",
     partySize: 15,
     message: "",
+    weightKg: 1,
   });
 
   const [loading, setLoading] = useState(false);
@@ -164,6 +169,7 @@ const Gallery = () => {
     []
   );
 
+  /* -------------------- Package List -------------------- */
   const galleryImages: PackageType[] = [
     {
       name: "Veg Snacks Only",
@@ -176,6 +182,20 @@ const Gallery = () => {
           title: "Select 2 Veg Snacks",
           category: "vegetarianSnacks",
           maxSelections: 2,
+        },
+      ],
+    },
+    {
+      name: "3 Snacks Package",
+      price: "19.99",
+      src: "/images/res/7.jpg",
+      description: "Pick 3 Vegetarian Snacks",
+      baseItems: ["Mint Chutney", "Boondi Raita", "Salad"],
+      steps: [
+        {
+          title: "Select 3 Veg Snacks",
+          category: "vegetarianSnacks",
+          maxSelections: 3,
         },
       ],
     },
@@ -249,6 +269,23 @@ const Gallery = () => {
         },
       ],
     },
+    {
+      name: "Gujju’s Special (Khaman / Dhokla)",
+      price: "25.00",
+      src: "/images/res/8.png",
+      description:
+        "Soft and spongy Khaman/Dhokla — Perfect for any occasion. $25 per kg.",
+      description2:
+        "Surati Nylon Khaman is a soft, spongy delicacy made from gram flour, perfectly balanced with a subtle sweetness and tang, lightly infused with mustard seeds, green chilies, and fresh coriander for an authentic Gujarati flavor experience.",
+      baseItems: [],
+      steps: [
+        {
+          title: "Enter quantity in kilograms",
+          isWeightInput: true,
+        },
+      ],
+      isWeightBased: true,
+    },
   ];
 
   /* -------------------- Derived -------------------- */
@@ -261,7 +298,9 @@ const Gallery = () => {
   const perPerson = includeEcoSet
     ? basePerPerson + ecoPerPerson
     : basePerPerson;
-  const subtotal = perPerson * (form.partySize || 15);
+  const subtotal = selectedPackage?.isWeightBased
+    ? form.weightKg! * parseFloat(selectedPackage.price)
+    : perPerson * (form.partySize || 15);
   const grandTotal = subtotal;
 
   /* -------------------- Persistence -------------------- */
@@ -346,6 +385,8 @@ const Gallery = () => {
     !!currentPkgStep &&
     (currentPkgStep.isBreadChoice
       ? (stepSelections[currentStep]?.length || 0) >= 1
+      : currentPkgStep.isWeightInput
+      ? !!form.weightKg && form.weightKg > 0
       : (stepSelections[currentStep]?.length || 0) >=
         (currentPkgStep.maxSelections || 0));
 
@@ -367,20 +408,14 @@ const Gallery = () => {
   const submitAll = async () => {
     if (!selectedPackage) return;
 
-    if (!form.fullName || !form.phone || !form.email || !form.date) {
+    if (
+      !selectedPackage.isWeightBased &&
+      (!form.fullName || !form.phone || !form.email || !form.date)
+    ) {
       setAlertModal({
         show: true,
         title: "Incomplete Form",
         message: "Please fill in Full Name, Phone, Email, and Date.",
-        type: "error",
-      });
-      return;
-    }
-    if (form.partySize < 15) {
-      setAlertModal({
-        show: true,
-        title: "Minimum Order",
-        message: "Minimum order size is 15 people.",
         type: "error",
       });
       return;
@@ -432,6 +467,7 @@ const Gallery = () => {
   const proceedToCheckout = () => setShowCheckout(true);
 
   /* -------------------- UI -------------------- */
+  /* -------------------- UI -------------------- */
   return (
     <section id="menu" className="scroll-mt-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -465,26 +501,42 @@ const Gallery = () => {
                     {pkg.name}
                   </h3>
                   <p className="text-white/90 text-sm sm:text-base">
-                    ${pkg.price} / person
+                    {pkg.isWeightBased
+                      ? `$${pkg.price}/kg`
+                      : `$${pkg.price} / person`}
                   </p>
                 </div>
               </div>
               <div className="flex flex-col justify-between flex-1 p-4 sm:p-6">
-                <div>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
-                    {pkg.description}
-                  </p>
-                  <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-3 h-[120px] overflow-hidden">
+                <p className="text-base sm:text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
+                  {pkg.description}
+                </p>
+
+                {pkg.isWeightBased ? (
+                  // ✅ Special info card for Nylon Khaman
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
                     <p className="text-green-700 text-sm font-medium mb-2">
-                      Included in Every Meal:
+                      About this Dish:
                     </p>
-                    <ul className="text-gray-700 text-sm space-y-1">
-                      {pkg.baseItems.map((i) => (
-                        <li key={i}>• {i}</li>
-                      ))}
-                    </ul>
+                    <p className="text-gray-700 text-sm leading-snug">
+                      {pkg.description2}
+                    </p>
                   </div>
-                </div>
+                ) : (
+                  pkg.baseItems.length > 0 && (
+                    <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-3 h-[120px] overflow-hidden">
+                      <p className="text-green-700 text-sm font-medium mb-2">
+                        Included in Every Meal:
+                      </p>
+                      <ul className="text-gray-700 text-sm space-y-1">
+                        {pkg.baseItems.map((i) => (
+                          <li key={i}>• {i}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                )}
+
                 <p className="text-primary text-sm font-medium mt-auto">
                   Tap anywhere to customize →
                 </p>
@@ -510,347 +562,379 @@ const Gallery = () => {
                 ✕
               </button>
 
-              {/* PROGRESS DOTS */}
-              <div className="flex justify-center gap-2 mb-6 mt-6 sm:mt-0">
-                {Array.from({ length: selectedPackage.steps.length + 2 }).map(
-                  (_, idx) => (
-                    <div
-                      key={idx}
-                      className={clsx(
-                        "w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full",
-                        showCheckout
-                          ? idx + 1 === selectedPackage.steps.length + 2
-                            ? "bg-primary scale-125"
-                            : "bg-gray-300"
-                          : currentStep >= idx + 1
-                          ? "bg-primary scale-125"
-                          : "bg-gray-300"
-                      )}
-                    />
-                  )
-                )}
-              </div>
+              {/* DHOKLA PACKAGE — SPECIAL CASE */}
+              {/* DHOKLA PACKAGE — SPECIAL CASE */}
+              {selectedPackage.isWeightBased ? (
+                <div className="text-center py-8">
+                  <h3 className="text-xl sm:text-2xl font-bold text-[#7c1b14] mb-2">
+                    {selectedPackage.name}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    ${selectedPackage.price}/kg — Soft, spongy & delicious!
+                  </p>
 
-              {/* STEP CONTENT */}
-              {!showCheckout &&
-                currentPkgStep &&
-                !currentPkgStep.isBreadChoice && (
-                  <div className="animate-slideIn">
-                    <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
-                      {currentPkgStep.title}
-                    </h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
-                      {(() => {
-                        if (currentPkgStep.category === "vegetarianChoices")
-                          return mainCourseChoices;
-                        if (currentPkgStep.category === "paneerChoices")
-                          return addOnMenu.paneerChoices;
-                        if (currentPkgStep.category === "vegetarianSnacks")
-                          return addOnMenu.vegetarianSnacks;
-                        if (currentPkgStep.category === "dessertChoices")
-                          return addOnMenu.dessertChoices;
-                        return [];
-                      })().map((item, idx) => (
-                        <button
-                          key={`${item}-${idx}`}
-                          onClick={() =>
-                            toggleSelection(item, currentPkgStep.maxSelections!)
-                          }
-                          className={clsx(
-                            "border rounded-full py-2 px-3 text-xs sm:text-sm transition-all",
-                            (stepSelections[currentStep] || []).includes(item)
-                              ? "bg-primary text-white"
-                              : "border-gray-300 hover:border-primary"
-                          )}
-                        >
-                          {item}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 text-center mt-3">
-                      {stepSelections[currentStep]?.length || 0}/
-                      {currentPkgStep.maxSelections} selected
+                  {/* About this Dish */}
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4 text-left max-w-md mx-auto">
+                    <p className="text-green-700 text-sm font-medium mb-1">
+                      About this Dish:
+                    </p>
+                    <p className="text-gray-700 text-sm leading-snug">
+                      {selectedPackage.description2}
                     </p>
                   </div>
-                )}
 
-              {/* BREAD STEP */}
-              {!showCheckout && currentPkgStep?.isBreadChoice && (
-                <div className="animate-slideIn text-center">
-                  <h3 className="text-lg sm:text-xl font-semibold text-primary mb-3">
-                    Choose Your Bread
-                  </h3>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    {["Roti", "Tandoori Naan"].map((b) => (
+                  {/* Quantity */}
+                  <div className="mb-6">
+                    <label className="block text-sm text-gray-700 mb-2">
+                      Enter Quantity (in kilograms)
+                    </label>
+                    <input
+                      type="number"
+                      min={0.5}
+                      step={0.5}
+                      value={form.weightKg}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          weightKg: Math.max(0.5, Number(e.target.value || 1)),
+                        })
+                      }
+                      className="w-32 mx-auto border border-gray-300 rounded-full px-4 py-2 text-center text-lg"
+                    />
+                    <p className="mt-3 text-lg font-semibold text-green-700">
+                      Total: $
+                      {(
+                        form.weightKg! * parseFloat(selectedPackage.price)
+                      ).toFixed(2)}
+                    </p>
+                  </div>
+
+                  {/* DELIVERY FORM */}
+                  <div className="text-left max-w-2xl mx-auto">
+                    <h4 className="text-lg font-semibold text-[#7c1b14] mb-3 text-center">
+                      Delivery Details
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-[#7c1b14] mb-1">
+                          Full Name
+                        </label>
+                        <input
+                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                          placeholder="Enter your full name"
+                          value={form.fullName}
+                          onChange={(e) =>
+                            setForm({ ...form, fullName: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-[#7c1b14] mb-1">
+                          Phone Number
+                        </label>
+                        <input
+                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                          placeholder="Enter your phone number"
+                          value={form.phone}
+                          onChange={(e) =>
+                            setForm({ ...form, phone: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-[#7c1b14] mb-1">
+                          Delivery Location / Address
+                        </label>
+                        <input
+                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                          placeholder="Enter delivery address"
+                          value={form.eventType}
+                          onChange={(e) =>
+                            setForm({ ...form, eventType: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-[#7c1b14] mb-1">
+                          Delivery Date & Time
+                        </label>
+                        <input
+                          type="datetime-local"
+                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                          value={form.date}
+                          onChange={(e) =>
+                            setForm({ ...form, date: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-[#7c1b14] mb-1">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                          placeholder="Enter your email"
+                          value={form.email}
+                          onChange={(e) =>
+                            setForm({ ...form, email: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    {/* SUBMIT BUTTON */}
+                    <div className="text-center mt-8">
                       <button
-                        key={b}
-                        onClick={() => selectBread(b)}
+                        onClick={submitAll}
+                        disabled={loading}
                         className={clsx(
-                          "border rounded-full px-4 py-2 text-sm transition-all",
-                          (stepSelections[currentStep] || []).includes(b)
-                            ? "bg-primary text-white"
-                            : "border-gray-300 hover:border-primary"
+                          "px-8 py-2 rounded-full text-white font-medium text-sm",
+                          loading
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "bg-[#7c1b14] hover:bg-[#a0241a]"
                         )}
                       >
-                        {b}
+                        {loading ? "Submitting..." : "Submit Order"}
                       </button>
-                    ))}
+                    </div>
                   </div>
                 </div>
-              )}
+              ) : (
+                <>
+                  {/* PROGRESS DOTS */}
+                  <div className="flex justify-center gap-2 mb-6 mt-6 sm:mt-0">
+                    {Array.from({
+                      length: selectedPackage.steps.length + 2,
+                    }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={clsx(
+                          "w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full",
+                          showCheckout
+                            ? idx + 1 === selectedPackage.steps.length + 2
+                              ? "bg-primary scale-125"
+                              : "bg-gray-300"
+                            : currentStep >= idx + 1
+                            ? "bg-primary scale-125"
+                            : "bg-gray-300"
+                        )}
+                      />
+                    ))}
+                  </div>
 
-              {/* SUMMARY */}
-              {!showCheckout && isSummaryStep && (
-                <div className="animate-slideIn">
-                  <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
-                    Summary — {selectedPackage.name}
-                  </h3>
-                  <div className="bg-green-50 border border-green-100 rounded-xl p-4 mb-4 text-sm sm:text-base">
-                    <p className="text-green-700 font-medium mb-2 text-center">
-                      Included in Every Meal
-                    </p>
-                    <ul className="list-disc list-inside text-gray-700 mb-3">
-                      {selectedPackage.baseItems.map((i) => (
-                        <li key={i}>{i}</li>
-                      ))}
-                    </ul>
-                    {selectedPackage.steps.map((step, idx) => (
-                      <div key={idx} className="mb-2">
-                        <p className="font-medium text-gray-800">
-                          {step.title}
-                        </p>
-                        <p className="text-gray-600">
-                          {(stepSelections[idx + 1] || []).length
-                            ? stepSelections[idx + 1].join(", ")
-                            : "—"}
-                        </p>
+                  {/* STEP / SUMMARY / CHECKOUT UI */}
+                  {!showCheckout && currentPkgStep && !isSummaryStep && (
+                    <div className="animate-slideIn">
+                      <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
+                        {currentPkgStep.title}
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                        {(() => {
+                          if (currentPkgStep.category === "vegetarianChoices")
+                            return mainCourseChoices;
+                          if (currentPkgStep.category === "paneerChoices")
+                            return addOnMenu.paneerChoices;
+                          if (currentPkgStep.category === "vegetarianSnacks")
+                            return addOnMenu.vegetarianSnacks;
+                          if (currentPkgStep.category === "dessertChoices")
+                            return addOnMenu.dessertChoices;
+                          return [];
+                        })().map((item, idx) => (
+                          <button
+                            key={`${item}-${idx}`}
+                            onClick={() =>
+                              toggleSelection(
+                                item,
+                                currentPkgStep.maxSelections!
+                              )
+                            }
+                            className={clsx(
+                              "border rounded-full py-2 px-3 text-xs sm:text-sm transition-all",
+                              (stepSelections[currentStep] || []).includes(item)
+                                ? "bg-primary text-white"
+                                : "border-gray-300 hover:border-primary"
+                            )}
+                          >
+                            {item}
+                          </button>
+                        ))}
                       </div>
-                    ))}
-                    <div className="mt-4 border border-green-200 bg-green-50 rounded-xl p-3 flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        id="ecoSet"
-                        checked={includeEcoSet}
-                        onChange={() => setIncludeEcoSet((p) => !p)}
-                        className="mt-1 accent-green-600 cursor-pointer"
-                      />
-                      <label htmlFor="ecoSet" className="text-sm text-gray-700">
-                        <strong>Eco-friendly disposable set</strong> — plates,
-                        glasses, spoons, forks{" "}
-                        <span className="text-green-700 font-semibold">
-                          (+$1.49/person)
-                        </span>
-                      </label>
+                      <p className="text-xs text-gray-500 text-center mt-3">
+                        {stepSelections[currentStep]?.length || 0}/
+                        {currentPkgStep.maxSelections} selected
+                      </p>
                     </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      onClick={proceedToCheckout}
-                      className="px-6 py-2 rounded-full bg-primary text-white hover:bg-primary/90 text-sm"
-                    >
-                      Confirm & Request →
-                    </button>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {/* CHECKOUT */}
-              {showCheckout && (
-                <div className="animate-slideIn pb-8">
-                  <h3 className="text-2xl sm:text-3xl font-bold text-center text-[#7c1b14] mb-6">
-                    Catering Form
-                  </h3>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-[#7c1b14] mb-1">
-                        Full Name
-                      </label>
-                      <input
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        placeholder="Enter your full name"
-                        value={form.fullName}
-                        onChange={(e) =>
-                          setForm({ ...form, fullName: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-[#7c1b14] mb-1">
-                        Phone Number
-                      </label>
-                      <input
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        placeholder="Enter your phone number"
-                        value={form.phone}
-                        onChange={(e) =>
-                          setForm({ ...form, phone: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-[#7c1b14] mb-1">
-                        Delivery Location / Address
-                      </label>
-                      <input
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        placeholder="Enter delivery location or event address"
-                        value={form.eventType}
-                        onChange={(e) =>
-                          setForm({ ...form, eventType: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-[#7c1b14] mb-1">
-                        Event Date & Time
-                      </label>
-                      <input
-                        type="datetime-local"
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        value={form.date}
-                        onChange={(e) =>
-                          setForm({ ...form, date: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-[#7c1b14] mb-1">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        placeholder="Enter your email address"
-                        value={form.email}
-                        onChange={(e) =>
-                          setForm({ ...form, email: e.target.value })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-[#7c1b14] mb-1">
-                        Party Size (Minimum 15 People)
-                      </label>
-                      <input
-                        type="number"
-                        min={15}
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        value={form.partySize}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            partySize: Math.max(
-                              15,
-                              Number(e.target.value || 15)
-                            ),
-                          })
-                        }
-                      />
-                      {form.partySize < 15 && (
-                        <p className="text-xs text-red-600 mt-1">
-                          * Minimum order size is 15 people
+                  {/* SUMMARY */}
+                  {!showCheckout && isSummaryStep && (
+                    <div className="animate-slideIn">
+                      <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
+                        Summary — {selectedPackage.name}
+                      </h3>
+                      <div className="bg-green-50 border border-green-100 rounded-xl p-4 mb-4 text-sm sm:text-base">
+                        <p className="text-green-700 font-medium mb-2 text-center">
+                          Included in Every Meal
                         </p>
-                      )}
+                        <ul className="list-disc list-inside text-gray-700 mb-3">
+                          {selectedPackage.baseItems.map((i) => (
+                            <li key={i}>{i}</li>
+                          ))}
+                        </ul>
+                        {selectedPackage.steps.map((step, idx) => (
+                          <div key={idx} className="mb-2">
+                            <p className="font-medium text-gray-800">
+                              {step.title}
+                            </p>
+                            <p className="text-gray-600">
+                              {(stepSelections[idx + 1] || []).length
+                                ? stepSelections[idx + 1].join(", ")
+                                : "—"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={proceedToCheckout}
+                          className="px-6 py-2 rounded-full bg-primary text-white hover:bg-primary/90 text-sm"
+                        >
+                          Confirm & Request →
+                        </button>
+                      </div>
                     </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-sm text-[#7c1b14] mb-1">
-                        Additional Notes / Message
-                      </label>
-                      <textarea
-                        rows={4}
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none resize-none"
-                        placeholder="Please share any special instructions or preferences"
-                        value={form.message}
-                        onChange={(e) =>
-                          setForm({ ...form, message: e.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* TOTALS */}
-                  <div className="mt-6 bg-[#fff5f4] border border-[#f0c6c2] rounded-2xl p-4 text-sm sm:text-base">
-                    <div className="flex justify-between">
-                      <span>Per person</span>
-                      <span>${perPerson.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Party size</span>
-                      <span>{form.partySize}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Subtotal</span>
-                      <span>${subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between font-semibold text-lg mt-1">
-                      <span>Total</span>
-                      <span>${grandTotal.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  {/* ACTION BUTTONS */}
-                  <div className="sticky bottom-0 bg-white mt-6 py-3 flex justify-between border-t border-gray-100">
-                    <button
-                      onClick={prevStep}
-                      className="px-5 py-2 border border-gray-300 rounded-full hover:bg-gray-100 text-sm"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={submitAll}
-                      disabled={loading || form.partySize < 15}
-                      className={clsx(
-                        "px-6 py-2 rounded-full text-sm font-medium flex items-center gap-2",
-                        form.partySize < 15 || loading
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                          : "bg-[#7c1b14] text-white hover:opacity-90"
-                      )}
-                    >
-                      {loading && (
-                        <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      )}
-                      {loading ? "Submitting..." : "Submit"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP NAVIGATION */}
-              {!showCheckout && (
-                <div className="mt-6 flex justify-between flex-wrap gap-2">
-                  {currentStep > 1 ? (
-                    <button
-                      onClick={prevStep}
-                      className="px-5 py-2 border border-gray-300 rounded-full hover:bg-gray-100 text-sm"
-                    >
-                      Back
-                    </button>
-                  ) : (
-                    <span />
                   )}
-                  {!isSummaryStep ? (
-                    <button
-                      onClick={nextStep}
-                      disabled={!canProceedCurrent}
-                      className={clsx(
-                        "px-5 py-2 rounded-full text-sm transition-all",
-                        canProceedCurrent
-                          ? "bg-primary text-white hover:bg-primary/90"
-                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      )}
-                    >
-                      Next
-                    </button>
-                  ) : (
-                    <button
-                      onClick={proceedToCheckout}
-                      className="px-5 py-2 bg-primary text-white rounded-full hover:bg-primary/90 text-sm"
-                    >
-                      Confirm & Request
-                    </button>
+
+                  {/* CHECKOUT FORM */}
+                  {showCheckout && (
+                    <div className="animate-slideIn pb-8">
+                      <h3 className="text-2xl sm:text-3xl font-bold text-center text-[#7c1b14] mb-6">
+                        Catering Form
+                      </h3>
+                      {/* FORM FIELDS */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm text-[#7c1b14] mb-1">
+                            Full Name
+                          </label>
+                          <input
+                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                            placeholder="Enter your full name"
+                            value={form.fullName}
+                            onChange={(e) =>
+                              setForm({ ...form, fullName: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-[#7c1b14] mb-1">
+                            Phone Number
+                          </label>
+                          <input
+                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                            placeholder="Enter your phone number"
+                            value={form.phone}
+                            onChange={(e) =>
+                              setForm({ ...form, phone: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-[#7c1b14] mb-1">
+                            Delivery Location / Address
+                          </label>
+                          <input
+                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                            placeholder="Enter delivery address"
+                            value={form.eventType}
+                            onChange={(e) =>
+                              setForm({ ...form, eventType: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-[#7c1b14] mb-1">
+                            Event Date & Time
+                          </label>
+                          <input
+                            type="datetime-local"
+                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                            value={form.date}
+                            onChange={(e) =>
+                              setForm({ ...form, date: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-[#7c1b14] mb-1">
+                            Email Address
+                          </label>
+                          <input
+                            type="email"
+                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                            placeholder="Enter your email"
+                            value={form.email}
+                            onChange={(e) =>
+                              setForm({ ...form, email: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm text-[#7c1b14] mb-1">
+                            Party Size (Min 15)
+                          </label>
+                          <input
+                            type="number"
+                            min={15}
+                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                            value={form.partySize}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                partySize: Math.max(
+                                  15,
+                                  Number(e.target.value || 15)
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* TOTALS */}
+                      <div className="mt-6 bg-[#fff5f4] border border-[#f0c6c2] rounded-2xl p-4 text-sm sm:text-base">
+                        <div className="flex justify-between">
+                          <span>Per person</span>
+                          <span>${perPerson.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Party size</span>
+                          <span>{form.partySize}</span>
+                        </div>
+                        <div className="flex justify-between font-semibold text-lg mt-1">
+                          <span>Total</span>
+                          <span>${grandTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 flex justify-end">
+                        <button
+                          onClick={submitAll}
+                          disabled={loading || form.partySize < 15}
+                          className={clsx(
+                            "px-6 py-2 rounded-full text-white text-sm font-medium",
+                            form.partySize < 15 || loading
+                              ? "bg-gray-300 cursor-not-allowed"
+                              : "bg-[#7c1b14] hover:bg-[#a0241a]"
+                          )}
+                        >
+                          {loading ? "Submitting..." : "Submit Request"}
+                        </button>
+                      </div>
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>

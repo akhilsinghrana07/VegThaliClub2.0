@@ -36,7 +36,7 @@ const Footer: FC = () => {
                 Experience authentic vegetarian catering made easy — order from
                 top local kitchens, and we’ll deliver your thali right to you.
               </p>
-              <div className="flex gap-6 items-center">
+              {/* <div className="flex gap-6 items-center">
                 <Link
                   href="#"
                   className="group bg-white hover:bg-primary rounded-full shadow-xl p-3"
@@ -70,7 +70,7 @@ const Footer: FC = () => {
                     className=" group-hover:text-white text-black"
                   />
                 </Link>
-              </div>
+              </div> */}
             </div>
 
             {/* Footer Links */}

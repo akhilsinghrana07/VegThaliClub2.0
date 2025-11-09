@@ -8,7 +8,7 @@ import { FooterLinkType } from "@/app/types/footerlink";
 import { FullMenuType } from "@/app/types/fullmenu";
 
 const HeaderData: HeaderItem[] = [
-  { label: "About Us", href: "/#aboutus" },
+  // { label: "About Us", href: "/#aboutus" },
   { label: "Menu", href: "/#menu" },
   { label: "Contact Us", href: "/#reserve" },
   // { label: 'Docs', href: '/documentation' },
@@ -17,27 +17,27 @@ const HeaderData: HeaderItem[] = [
 const FeaturesData: FeaturesType[] = [
   {
     imgSrc: "/images/Features/featureOne.svg",
-    heading: "Elegant Dining Atmosphere",
+    heading: "Authentic Indian Flavors",
     subheading:
-      "Enjoy a warm, refined space perfect for intimate dinners or small group gatherings.",
-  },
-  {
-    imgSrc: "/images/Features/featureThree.svg",
-    heading: "Signature Chef Creations",
-    subheading:
-      "Taste one-of-a-kind dishes crafted with passion by our top culinary team.",
+      "Experience the taste of India with homestyle recipes and aromatic spices made fresh daily.",
   },
   {
     imgSrc: "/images/Features/featureTwo.svg",
-    heading: "Fresh, Local Ingredients",
+    heading: "Freshly Prepared in Our Cloud Kitchen",
     subheading:
-      "We use locally sourced goods daily for unmatched taste and quality.",
+      "Every dish is cooked to order in our hygienic cloud kitchen — ensuring quality, freshness, and consistency.",
+  },
+  {
+    imgSrc: "/images/Features/featureThree.svg",
+    heading: "Customized Catering Packages",
+    subheading:
+      "From corporate lunches to festive gatherings, our flexible menus fit every event and budget.",
   },
   {
     imgSrc: "/images/Features/featureFour.svg",
-    heading: "Hassle-Free Reservations",
+    heading: "Seamless Ordering & Delivery",
     subheading:
-      "Reserve online in seconds or walk in anytime — we’re ready when you are.",
+      "Order effortlessly through our online platform and enjoy on-time delivery, hot and fresh to your doorstep.",
   },
 ];
 

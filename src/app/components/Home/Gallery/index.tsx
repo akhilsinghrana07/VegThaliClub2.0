@@ -1,7 +1,6 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import Masonry from "react-masonry-css";
 import clsx from "clsx";
 
 /* -------------------- Types -------------------- */
@@ -14,7 +13,7 @@ type StepConfig = {
 
 type PackageType = {
   name: string;
-  price: string; // per person
+  price: string;
   src: string;
   description: string;
   baseItems: string[];
@@ -24,7 +23,6 @@ type PackageType = {
 type AddOnMenuType = {
   vegetarianSnacks: string[];
   vegetarianChoices: string[];
-  chineseSnacks: string[];
   paneerChoices: string[];
   dessertChoices: string[];
 };
@@ -32,14 +30,14 @@ type AddOnMenuType = {
 type FormDataType = {
   fullName: string;
   phone: string;
-  eventType: string; // location / type
-  date: string; // yyyy-mm-dd
+  eventType: string;
+  date: string;
   email: string;
   partySize: number;
   message: string;
 };
 
-/* -------------------- Small IndexedDB helper -------------------- */
+/* -------------------- IndexedDB helpers -------------------- */
 const DB_NAME = "catering-db";
 const DB_STORE = "catering-store";
 const DB_KEY = "in-progress";
@@ -49,14 +47,14 @@ function idbOpen(): Promise<IDBDatabase> {
     const req = indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(DB_STORE)) {
+      if (!db.objectStoreNames.contains(DB_STORE))
         db.createObjectStore(DB_STORE);
-      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
+
 async function idbSet<T>(key: string, val: T) {
   const db = await idbOpen();
   await new Promise<void>((res, rej) => {
@@ -67,6 +65,7 @@ async function idbSet<T>(key: string, val: T) {
   });
   db.close();
 }
+
 async function idbGet<T>(key: string): Promise<T | undefined> {
   const db = await idbOpen();
   const out = await new Promise<T | undefined>((res, rej) => {
@@ -78,13 +77,14 @@ async function idbGet<T>(key: string): Promise<T | undefined> {
   db.close();
   return out;
 }
+
 async function idbClear(key: string) {
   const db = await idbOpen();
   await new Promise<void>((res, rej) => {
     const tx = db.transaction(DB_STORE, "readwrite");
-    const req = tx.objectStore(DB_STORE).delete(key);
-    req.onsuccess = () => res();
-    req.onerror = () => rej(req.error);
+    tx.objectStore(DB_STORE).delete(key);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
   });
   db.close();
 }
@@ -96,31 +96,33 @@ const Gallery = () => {
   const [selectedPackage, setSelectedPackage] = useState<PackageType | null>(
     null
   );
-
-  // Step index -> string[]
   const [stepSelections, setStepSelections] = useState<
     Record<number, string[]>
   >({});
   const [includeEcoSet, setIncludeEcoSet] = useState(false);
-
-  // Pricing
-  const [basePerPerson, setBasePerPerson] = useState<number>(0); // from package
-  const ecoPerPerson = 0.99;
-  const HST = 0.13;
-
-  // Form + total section
+  const [basePerPerson, setBasePerPerson] = useState<number>(0);
+  const ecoPerPerson = 1.49;
   const [showCheckout, setShowCheckout] = useState(false);
+
   const [form, setForm] = useState<FormDataType>({
     fullName: "",
     phone: "",
     eventType: "",
     date: "",
     email: "",
-    partySize: 1,
+    partySize: 15,
     message: "",
   });
 
-  /* -------------------- Data -------------------- */
+  const [loading, setLoading] = useState(false);
+  const [alertModal, setAlertModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error";
+  }>({ show: false, title: "", message: "", type: "success" });
+
+  /* -------------------- Menu Data -------------------- */
   const addOnMenu: AddOnMenuType = {
     vegetarianSnacks: [
       "Aloo Tikki",
@@ -133,17 +135,9 @@ const Gallery = () => {
       "Dahi Bhalla",
       "Bhel Puri",
       "Pani Puri",
-      "Chilli Paneer",
       "Veg Manchurian",
-      "Tandoori Soya Chaap",
-    ],
-    chineseSnacks: [
-      "Manchurian",
-      "Veg Chilli",
       "Chilli Paneer",
-      "Chilli Potato",
-      "Fried Rice (Veg)",
-      "Noodles (Veg)",
+      "Tandoori Soya Chaap",
     ],
     paneerChoices: [
       "Shahi Paneer",
@@ -165,26 +159,39 @@ const Gallery = () => {
     dessertChoices: ["Gajjar Halwa", "Gulab Jamun", "Suji Halwa"],
   };
 
-  // Combine paneer + veg mains for any step that uses vegetarianChoices
   const mainCourseChoices = useMemo(
     () => [...addOnMenu.vegetarianChoices, ...addOnMenu.paneerChoices],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
   const galleryImages: PackageType[] = [
     {
-      name: "Vegetarian",
+      name: "Veg Snacks Only",
       price: "16.99",
+      src: "/images/res/0.png",
+      description: "Pick 2 Vegetarian Snacks",
+      baseItems: ["Boondi Raita", "Salad", "Mint Chutney"],
+      steps: [
+        {
+          title: "Select 2 Veg Snacks",
+          category: "vegetarianSnacks",
+          maxSelections: 2,
+        },
+      ],
+    },
+    {
+      name: "Vegetarian",
+      price: "19.99",
       src: "/images/res/1.jpg",
-      description: "Pick 3 Main Dishes & 1 Dessert",
-      baseItems: ["Boondi Raita", "Jeera Rice", "Salad", "Roti or Naan"],
+      description: "Pick 3 Main Dishes, Bread & 1 Dessert",
+      baseItems: ["Boondi Raita", "Jeera Rice", "Salad"],
       steps: [
         {
           title: "Select 3 Main Dishes (Paneer or Veg)",
           category: "vegetarianChoices",
           maxSelections: 3,
         },
+        { title: "Choose Bread Option", isBreadChoice: true },
         {
           title: "Select 1 Dessert",
           category: "dessertChoices",
@@ -194,10 +201,9 @@ const Gallery = () => {
     },
     {
       name: "Snacks & Main Course",
-      price: "25.00",
+      price: "29.99",
       src: "/images/res/2.jpg",
-      description:
-        "Pick 2 Veg Snacks, 1 Main Dish (Paneer or Veg), 2 Sweets & Bread",
+      description: "Pick 2 Veg Snacks, 3 Main Dishes, Bread & 2 Sweets",
       baseItems: ["Boondi Raita", "Jeera Rice", "Salad"],
       steps: [
         {
@@ -206,25 +212,24 @@ const Gallery = () => {
           maxSelections: 2,
         },
         {
-          title: "Pick 1 Main Dish (Paneer or Veg)",
+          title: "Select 3 Main Dishes (Paneer or Veg)",
           category: "vegetarianChoices",
-          maxSelections: 1,
+          maxSelections: 3,
         },
+        { title: "Choose Bread Option", isBreadChoice: true },
         {
           title: "Pick 2 Sweets",
           category: "dessertChoices",
           maxSelections: 2,
         },
-        { title: "Choose Bread Option", isBreadChoice: true },
       ],
     },
     {
       name: "Premium Vegetarian",
-      price: "30.00",
+      price: "34.99",
       src: "/images/res/3.jpg",
-      description:
-        "Pick 4 Veg Snacks, 4 Main Course (Paneer or Veg) & 1 Dessert",
-      baseItems: ["Rice", "Raita", "Salad", "Plain Naan or Tandoori Naan"],
+      description: "Pick 4 Veg Snacks, 3 Main Dishes, Bread & 1 Dessert",
+      baseItems: ["Rice", "Raita", "Salad"],
       steps: [
         {
           title: "Pick 4 Veg Snacks",
@@ -232,10 +237,11 @@ const Gallery = () => {
           maxSelections: 4,
         },
         {
-          title: "Pick 4 Main Dishes (Paneer or Veg)",
+          title: "Select 3 Main Dishes (Paneer or Veg)",
           category: "vegetarianChoices",
-          maxSelections: 4,
+          maxSelections: 3,
         },
+        { title: "Choose Bread Option", isBreadChoice: true },
         {
           title: "Pick 1 Dessert",
           category: "dessertChoices",
@@ -252,21 +258,15 @@ const Gallery = () => {
   const isSummaryStep =
     selectedPackage && currentStep > selectedPackage.steps.length;
 
-  const perPerson = useMemo(
-    () => (includeEcoSet ? basePerPerson + 0.99 : basePerPerson),
-    [basePerPerson, includeEcoSet]
-  );
-  const subtotal = useMemo(
-    () => perPerson * (form.partySize || 1),
-    [perPerson, form.partySize]
-  );
-  const tax = useMemo(() => subtotal * HST, [subtotal]);
-  const grandTotal = useMemo(() => subtotal + tax, [subtotal, tax]);
+  const perPerson = includeEcoSet
+    ? basePerPerson + ecoPerPerson
+    : basePerPerson;
+  const subtotal = perPerson * (form.partySize || 15);
+  const grandTotal = subtotal;
 
   /* -------------------- Persistence -------------------- */
-  // Save to IDB whenever key state changes
   useEffect(() => {
-    const payload = {
+    idbSet(DB_KEY, {
       selectedPackageName: selectedPackage?.name ?? null,
       currentStep,
       stepSelections,
@@ -274,8 +274,7 @@ const Gallery = () => {
       basePerPerson,
       form,
       showCheckout,
-    };
-    idbSet(DB_KEY, payload).catch(() => {});
+    }).catch(() => {});
   }, [
     selectedPackage,
     currentStep,
@@ -286,7 +285,6 @@ const Gallery = () => {
     showCheckout,
   ]);
 
-  // Load from IDB on mount
   useEffect(() => {
     (async () => {
       const data = await idbGet<any>(DB_KEY);
@@ -309,7 +307,6 @@ const Gallery = () => {
       if (data.form) setForm(data.form);
       if (data.showCheckout) setShowCheckout(true);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* -------------------- Handlers -------------------- */
@@ -333,11 +330,10 @@ const Gallery = () => {
   const toggleSelection = (item: string, limit: number) => {
     setStepSelections((prev) => {
       const current = prev[currentStep] || [];
-      if (current.includes(item)) {
+      if (current.includes(item))
         return { ...prev, [currentStep]: current.filter((i) => i !== item) };
-      } else if (current.length < limit) {
+      else if (current.length < limit)
         return { ...prev, [currentStep]: [...current, item] };
-      }
       return prev;
     });
   };
@@ -355,13 +351,9 @@ const Gallery = () => {
 
   const nextStep = () => {
     if (!selectedPackage) return;
-    const totalSteps = selectedPackage.steps.length; // dynamic
-    if (currentStep < totalSteps) {
-      setCurrentStep((s) => s + 1);
-    } else {
-      // to summary
-      setCurrentStep(totalSteps + 1);
-    }
+    const totalSteps = selectedPackage.steps.length;
+    if (currentStep < totalSteps) setCurrentStep((s) => s + 1);
+    else setCurrentStep(totalSteps + 1);
   };
 
   const prevStep = () => {
@@ -372,28 +364,29 @@ const Gallery = () => {
     if (currentStep > 1) setCurrentStep((s) => s - 1);
   };
 
-  const toggleEcoOption = () => setIncludeEcoSet((prev) => !prev);
-
-  const proceedToCheckout = () => {
-    setShowCheckout(true);
-  };
-
-  const onFormChange = (key: keyof FormDataType, val: string | number) =>
-    setForm((f) => ({ ...f, [key]: val } as FormDataType));
-
   const submitAll = async () => {
     if (!selectedPackage) return;
-    // Basic validation
-    if (
-      !form.fullName ||
-      !form.phone ||
-      !form.email ||
-      !form.date ||
-      !form.partySize
-    ) {
-      alert("Please fill in Full Name, Phone, Email, Date and Party Size.");
+
+    if (!form.fullName || !form.phone || !form.email || !form.date) {
+      setAlertModal({
+        show: true,
+        title: "Incomplete Form",
+        message: "Please fill in Full Name, Phone, Email, and Date.",
+        type: "error",
+      });
       return;
     }
+    if (form.partySize < 15) {
+      setAlertModal({
+        show: true,
+        title: "Minimum Order",
+        message: "Minimum order size is 15 people.",
+        type: "error",
+      });
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch("/api/send-catering-email", {
         method: "POST",
@@ -408,73 +401,80 @@ const Gallery = () => {
           includeEcoSet,
           perPerson,
           subtotal,
-          tax,
           grandTotal,
           form,
         }),
       });
-      if (!res.ok) throw new Error("Failed to send. Please try again.");
-      alert(
-        "Request submitted! We’ll reach out shortly. A copy has been sent to admin."
-      );
-      await idbClear(DB_KEY).catch(() => {});
+
+      if (!res.ok) throw new Error("Failed to send request.");
+
+      setAlertModal({
+        show: true,
+        title: "Request Submitted",
+        message:
+          "Your catering request has been sent. We’ll reach out shortly!",
+        type: "success",
+      });
+      await idbClear(DB_KEY);
       closeOrder();
-    } catch (e: any) {
-      alert(e?.message || "Something went wrong.");
+    } catch {
+      setAlertModal({
+        show: true,
+        title: "Submission Error",
+        message: "Something went wrong while submitting your form.",
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
     }
   };
+
+  const proceedToCheckout = () => setShowCheckout(true);
 
   /* -------------------- UI -------------------- */
   return (
     <section id="menu" className="scroll-mt-20">
-      <div className="container">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        {/* HEADER */}
         <div className="text-center">
           <p className="text-primary text-lg font-medium mb-3 tracking-widest uppercase">
             Our Packages
           </p>
-          <h2 className="text-3xl font-bold tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
             Explore Our Signature Catering Options
           </h2>
         </div>
 
-        {/* Gallery Cards */}
-        <div className="my-16 px-4 md:px-6">
-          <Masonry
-            breakpointCols={{ default: 3, 1100: 2, 700: 1 }}
-            className="flex gap-6"
-            columnClassName="masonry-column"
-          >
-            {galleryImages.map((pkg, index) => (
-              <div
-                key={index}
-                onClick={() => openOrder(pkg)}
-                className="group cursor-pointer rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 bg-white border border-green-100 hover:-translate-y-1"
-              >
-                {/* Image */}
-                <div className="relative h-64 w-full overflow-hidden">
-                  <Image
-                    src={pkg.src}
-                    alt={pkg.name}
-                    width={600}
-                    height={500}
-                    className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-green-900/70 to-transparent flex flex-col justify-end p-6">
-                    <h3 className="text-white text-2xl font-semibold">
-                      {pkg.name}
-                    </h3>
-                    <p className="text-white/90 text-sm">
-                      ${pkg.price} / person
-                    </p>
-                  </div>
+        {/* PACKAGE CARDS */}
+        <div className="my-16 grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12">
+          {galleryImages.map((pkg, i) => (
+            <div
+              key={i}
+              onClick={() => openOrder(pkg)}
+              className="group cursor-pointer bg-white border border-green-100 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 flex flex-col overflow-hidden"
+            >
+              <div className="relative w-full aspect-[372/200] overflow-hidden">
+                <Image
+                  src={pkg.src}
+                  alt={pkg.name}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-green-900/70 to-transparent flex flex-col justify-end p-4 sm:p-6">
+                  <h3 className="text-white text-xl sm:text-2xl font-semibold">
+                    {pkg.name}
+                  </h3>
+                  <p className="text-white/90 text-sm sm:text-base">
+                    ${pkg.price} / person
+                  </p>
                 </div>
-
-                {/* Body */}
-                <div className="p-6">
-                  <p className="text-lg font-semibold text-gray-900 mb-3">
+              </div>
+              <div className="flex flex-col justify-between flex-1 p-4 sm:p-6">
+                <div>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
                     {pkg.description}
                   </p>
-                  <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-3 h-[120px] overflow-hidden">
                     <p className="text-green-700 text-sm font-medium mb-2">
                       Included in Every Meal:
                     </p>
@@ -484,74 +484,80 @@ const Gallery = () => {
                       ))}
                     </ul>
                   </div>
-
-                  <p className="text-primary text-sm font-medium mt-2">
-                    Tap anywhere to customize →
-                  </p>
                 </div>
+                <p className="text-primary text-sm font-medium mt-auto">
+                  Tap anywhere to customize →
+                </p>
               </div>
-            ))}
-          </Masonry>
+            </div>
+          ))}
         </div>
 
-        {/* Modal */}
+        {/* MODAL */}
         {isOrderOpen && selectedPackage && (
           <div
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-2 sm:p-4"
             onClick={closeOrder}
           >
             <div
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-6 relative overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 relative"
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 onClick={closeOrder}
-                className="absolute top-3 right-3 text-gray-500 hover:text-primary text-2xl"
+                className="absolute top-3 right-4 text-gray-500 hover:text-primary text-2xl"
               >
                 ✕
               </button>
 
-              {/* Step Dots: steps + summary + checkout */}
-              <div className="flex justify-center gap-2 mb-6">
-                {Array.from({
-                  length: selectedPackage.steps.length + 2,
-                }).map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={clsx(
-                      "w-3 h-3 rounded-full",
-                      showCheckout
-                        ? idx + 1 === selectedPackage.steps.length + 2
+              {/* PROGRESS DOTS */}
+              <div className="flex justify-center gap-2 mb-6 mt-6 sm:mt-0">
+                {Array.from({ length: selectedPackage.steps.length + 2 }).map(
+                  (_, idx) => (
+                    <div
+                      key={idx}
+                      className={clsx(
+                        "w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full",
+                        showCheckout
+                          ? idx + 1 === selectedPackage.steps.length + 2
+                            ? "bg-primary scale-125"
+                            : "bg-gray-300"
+                          : currentStep >= idx + 1
                           ? "bg-primary scale-125"
                           : "bg-gray-300"
-                        : currentStep >= idx + 1
-                        ? "bg-primary scale-125"
-                        : "bg-gray-300"
-                    )}
-                  />
-                ))}
+                      )}
+                    />
+                  )
+                )}
               </div>
 
-              {/* Steps */}
+              {/* STEP CONTENT */}
               {!showCheckout &&
                 currentPkgStep &&
                 !currentPkgStep.isBreadChoice && (
                   <div className="animate-slideIn">
-                    <h3 className="text-xl font-semibold text-primary mb-3 text-center">
+                    <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
                       {currentPkgStep.title}
                     </h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(currentPkgStep.category === "vegetarianChoices"
-                        ? mainCourseChoices
-                        : addOnMenu[currentPkgStep.category!]
-                      ).map((item) => (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                      {(() => {
+                        if (currentPkgStep.category === "vegetarianChoices")
+                          return mainCourseChoices;
+                        if (currentPkgStep.category === "paneerChoices")
+                          return addOnMenu.paneerChoices;
+                        if (currentPkgStep.category === "vegetarianSnacks")
+                          return addOnMenu.vegetarianSnacks;
+                        if (currentPkgStep.category === "dessertChoices")
+                          return addOnMenu.dessertChoices;
+                        return [];
+                      })().map((item, idx) => (
                         <button
-                          key={item}
+                          key={`${item}-${idx}`}
                           onClick={() =>
                             toggleSelection(item, currentPkgStep.maxSelections!)
                           }
                           className={clsx(
-                            "border rounded-full py-2 px-3 text-sm transition-all",
+                            "border rounded-full py-2 px-3 text-xs sm:text-sm transition-all",
                             (stepSelections[currentStep] || []).includes(item)
                               ? "bg-primary text-white"
                               : "border-gray-300 hover:border-primary"
@@ -568,19 +574,19 @@ const Gallery = () => {
                   </div>
                 )}
 
-              {/* Bread step */}
+              {/* BREAD STEP */}
               {!showCheckout && currentPkgStep?.isBreadChoice && (
                 <div className="animate-slideIn text-center">
-                  <h3 className="text-xl font-semibold text-primary mb-3">
+                  <h3 className="text-lg sm:text-xl font-semibold text-primary mb-3">
                     Choose Your Bread
                   </h3>
-                  <div className="flex justify-center gap-4">
+                  <div className="flex flex-wrap justify-center gap-3">
                     {["Roti", "Tandoori Naan"].map((b) => (
                       <button
                         key={b}
                         onClick={() => selectBread(b)}
                         className={clsx(
-                          "border rounded-full px-5 py-2 text-sm transition-all",
+                          "border rounded-full px-4 py-2 text-sm transition-all",
                           (stepSelections[currentStep] || []).includes(b)
                             ? "bg-primary text-white"
                             : "border-gray-300 hover:border-primary"
@@ -593,74 +599,50 @@ const Gallery = () => {
                 </div>
               )}
 
-              {/* Summary */}
+              {/* SUMMARY */}
               {!showCheckout && isSummaryStep && (
                 <div className="animate-slideIn">
-                  <h3 className="text-xl font-semibold text-primary mb-4 text-center">
+                  <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
                     Summary — {selectedPackage.name}
                   </h3>
-                  <div className="bg-green-50 border border-green-100 rounded-xl p-4 mb-4">
-                    <p className="text-green-700 text-sm font-medium mb-2 text-center">
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-4 mb-4 text-sm sm:text-base">
+                    <p className="text-green-700 font-medium mb-2 text-center">
                       Included in Every Meal
                     </p>
-                    <ul className="text-gray-700 text-sm space-y-1 list-disc list-inside mb-4">
+                    <ul className="list-disc list-inside text-gray-700 mb-3">
                       {selectedPackage.baseItems.map((i) => (
                         <li key={i}>{i}</li>
                       ))}
                     </ul>
-
                     {selectedPackage.steps.map((step, idx) => (
                       <div key={idx} className="mb-2">
-                        <p className="font-medium text-gray-800 text-sm">
+                        <p className="font-medium text-gray-800">
                           {step.title}
                         </p>
-                        <p className="text-gray-600 text-sm">
+                        <p className="text-gray-600">
                           {(stepSelections[idx + 1] || []).length
                             ? stepSelections[idx + 1].join(", ")
                             : "—"}
                         </p>
                       </div>
                     ))}
-
-                    {/* Options */}
                     <div className="mt-4 border border-green-200 bg-green-50 rounded-xl p-3 flex items-start gap-3">
                       <input
                         type="checkbox"
                         id="ecoSet"
                         checked={includeEcoSet}
-                        onChange={toggleEcoOption}
+                        onChange={() => setIncludeEcoSet((p) => !p)}
                         className="mt-1 accent-green-600 cursor-pointer"
                       />
                       <label htmlFor="ecoSet" className="text-sm text-gray-700">
                         <strong>Eco-friendly disposable set</strong> — plates,
                         glasses, spoons, forks{" "}
                         <span className="text-green-700 font-semibold">
-                          (+$0.99/person)
+                          (+$1.49/person)
                         </span>
                       </label>
                     </div>
-
-                    {/* Price per person (before party size) */}
-                    <div className="mt-4 text-sm text-gray-700">
-                      <div className="flex justify-between">
-                        <span>Base price / person</span>
-                        <span>${basePerPerson.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Eco set / person</span>
-                        <span>
-                          {includeEcoSet
-                            ? `+$${ecoPerPerson.toFixed(2)}`
-                            : "$0.00"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between font-semibold">
-                        <span>Total / person</span>
-                        <span>${perPerson.toFixed(2)}</span>
-                      </div>
-                    </div>
                   </div>
-
                   <div className="flex justify-end">
                     <button
                       onClick={proceedToCheckout}
@@ -672,24 +654,24 @@ const Gallery = () => {
                 </div>
               )}
 
-              {/* Checkout / Form */}
+              {/* CHECKOUT */}
               {showCheckout && (
-                <div className="animate-slideIn">
-                  <h3 className="text-3xl font-bold text-center text-[#7c1b14] mb-6">
-                    Catering form
+                <div className="animate-slideIn pb-8">
+                  <h3 className="text-2xl sm:text-3xl font-bold text-center text-[#7c1b14] mb-6">
+                    Catering Form
                   </h3>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm text-[#7c1b14] mb-1">
                         Full Name
                       </label>
                       <input
                         className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        placeholder="Enter Your Full Name"
+                        placeholder="Enter your full name"
                         value={form.fullName}
                         onChange={(e) =>
-                          onFormChange("fullName", e.target.value)
+                          setForm({ ...form, fullName: e.target.value })
                         }
                       />
                     </div>
@@ -699,37 +681,39 @@ const Gallery = () => {
                       </label>
                       <input
                         className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        placeholder="Enter Your phone Number"
+                        placeholder="Enter your phone number"
                         value={form.phone}
-                        onChange={(e) => onFormChange("phone", e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm text-[#7c1b14] mb-1">
-                        Event Type
-                      </label>
-                      <input
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        placeholder="Enter The Location"
-                        value={form.eventType}
                         onChange={(e) =>
-                          onFormChange("eventType", e.target.value)
+                          setForm({ ...form, phone: e.target.value })
                         }
                       />
                     </div>
                     <div>
                       <label className="block text-sm text-[#7c1b14] mb-1">
-                        Date of Event
+                        Delivery Location / Address
                       </label>
                       <input
-                        type="date"
                         className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        value={form.date}
-                        onChange={(e) => onFormChange("date", e.target.value)}
+                        placeholder="Enter delivery location or event address"
+                        value={form.eventType}
+                        onChange={(e) =>
+                          setForm({ ...form, eventType: e.target.value })
+                        }
                       />
                     </div>
-
+                    <div>
+                      <label className="block text-sm text-[#7c1b14] mb-1">
+                        Event Date & Time
+                      </label>
+                      <input
+                        type="datetime-local"
+                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                        value={form.date}
+                        onChange={(e) =>
+                          setForm({ ...form, date: e.target.value })
+                        }
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm text-[#7c1b14] mb-1">
                         Email Address
@@ -737,62 +721,67 @@ const Gallery = () => {
                       <input
                         type="email"
                         className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        placeholder="Enter Your Email Address"
+                        placeholder="Enter your email address"
                         value={form.email}
-                        onChange={(e) => onFormChange("email", e.target.value)}
+                        onChange={(e) =>
+                          setForm({ ...form, email: e.target.value })
+                        }
                       />
                     </div>
                     <div>
                       <label className="block text-sm text-[#7c1b14] mb-1">
-                        Party Size (Total People)
+                        Party Size (Minimum 15 People)
                       </label>
                       <input
                         type="number"
-                        min={1}
+                        min={15}
                         className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
                         value={form.partySize}
                         onChange={(e) =>
-                          onFormChange(
-                            "partySize",
-                            Math.max(1, Number(e.target.value || 1))
-                          )
+                          setForm({
+                            ...form,
+                            partySize: Math.max(
+                              15,
+                              Number(e.target.value || 15)
+                            ),
+                          })
                         }
                       />
+                      {form.partySize < 15 && (
+                        <p className="text-xs text-red-600 mt-1">
+                          * Minimum order size is 15 people
+                        </p>
+                      )}
                     </div>
-
-                    <div className="md:col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="block text-sm text-[#7c1b14] mb-1">
-                        Message
+                        Additional Notes / Message
                       </label>
                       <textarea
                         rows={4}
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                        placeholder="Please let us know any other information we should know"
+                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none resize-none"
+                        placeholder="Please share any special instructions or preferences"
                         value={form.message}
                         onChange={(e) =>
-                          onFormChange("message", e.target.value)
+                          setForm({ ...form, message: e.target.value })
                         }
                       />
                     </div>
                   </div>
 
-                  {/* Totals */}
-                  <div className="mt-6 bg-[#fff5f4] border border-[#f0c6c2] rounded-2xl p-4">
-                    <div className="flex justify-between text-sm">
+                  {/* TOTALS */}
+                  <div className="mt-6 bg-[#fff5f4] border border-[#f0c6c2] rounded-2xl p-4 text-sm sm:text-base">
+                    <div className="flex justify-between">
                       <span>Per person</span>
                       <span>${perPerson.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between">
                       <span>Party size</span>
                       <span>{form.partySize}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between">
                       <span>Subtotal</span>
                       <span>${subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>HST (Ontario 13%)</span>
-                      <span>${tax.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between font-semibold text-lg mt-1">
                       <span>Total</span>
@@ -800,7 +789,8 @@ const Gallery = () => {
                     </div>
                   </div>
 
-                  <div className="mt-6 flex justify-between">
+                  {/* ACTION BUTTONS */}
+                  <div className="sticky bottom-0 bg-white mt-6 py-3 flex justify-between border-t border-gray-100">
                     <button
                       onClick={prevStep}
                       className="px-5 py-2 border border-gray-300 rounded-full hover:bg-gray-100 text-sm"
@@ -809,17 +799,26 @@ const Gallery = () => {
                     </button>
                     <button
                       onClick={submitAll}
-                      className="px-6 py-2 bg-[#7c1b14] text-white rounded-full hover:opacity-90 text-sm"
+                      disabled={loading || form.partySize < 15}
+                      className={clsx(
+                        "px-6 py-2 rounded-full text-sm font-medium flex items-center gap-2",
+                        form.partySize < 15 || loading
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          : "bg-[#7c1b14] text-white hover:opacity-90"
+                      )}
                     >
-                      Submit
+                      {loading && (
+                        <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      )}
+                      {loading ? "Submitting..." : "Submit"}
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Footer nav for steps (hidden on checkout) */}
+              {/* STEP NAVIGATION */}
               {!showCheckout && (
-                <div className="mt-6 flex justify-between">
+                <div className="mt-6 flex justify-between flex-wrap gap-2">
                   {currentStep > 1 ? (
                     <button
                       onClick={prevStep}
@@ -830,7 +829,6 @@ const Gallery = () => {
                   ) : (
                     <span />
                   )}
-
                   {!isSummaryStep ? (
                     <button
                       onClick={nextStep}
@@ -854,6 +852,31 @@ const Gallery = () => {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ALERT MODAL */}
+        {alertModal.show && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[60]">
+            <div className="bg-white p-6 rounded-2xl shadow-lg max-w-sm w-full text-center">
+              <h3
+                className={clsx(
+                  "text-lg font-semibold mb-2",
+                  alertModal.type === "success"
+                    ? "text-green-600"
+                    : "text-red-600"
+                )}
+              >
+                {alertModal.title}
+              </h3>
+              <p className="text-gray-700 mb-4">{alertModal.message}</p>
+              <button
+                onClick={() => setAlertModal({ ...alertModal, show: false })}
+                className="px-5 py-2 rounded-full bg-primary text-white hover:bg-primary/90 text-sm"
+              >
+                OK
+              </button>
             </div>
           </div>
         )}

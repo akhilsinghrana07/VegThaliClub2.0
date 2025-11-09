@@ -12,12 +12,10 @@ export async function POST(req: NextRequest) {
       includeEcoSet,
       perPerson,
       subtotal,
-      tax,
       grandTotal,
       form,
     } = body;
 
-    // ✅ Build email HTML
     const html = `
       <h2>🍽️ New Catering Request</h2>
       <h3>Package</h3>
@@ -42,10 +40,9 @@ export async function POST(req: NextRequest) {
 
       <h3>Pricing Summary</h3>
       <p>
-        Per Person: <strong>$${perPerson.toFixed(2)}</strong><br/>
-        Subtotal: $${subtotal.toFixed(2)}<br/>
-        HST (Ontario 13%): $${tax.toFixed(2)}<br/>
-        <strong>Total: $${grandTotal.toFixed(2)}</strong>
+        Per Person: <strong>$${Number(perPerson).toFixed(2)}</strong><br/>
+        Subtotal: $${Number(subtotal).toFixed(2)}<br/>
+        <strong>Total: $${Number(grandTotal).toFixed(2)}</strong>
       </p>
 
       <h3>Client Info</h3>
@@ -60,11 +57,10 @@ export async function POST(req: NextRequest) {
       </p>
     `;
 
-    // ✅ Mail transporter setup
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
       port: Number(process.env.SMTP_PORT || 465),
-      secure: process.env.SMTP_SECURE === "true",
+      secure: String(process.env.SMTP_SECURE || "true") === "true",
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -76,7 +72,7 @@ export async function POST(req: NextRequest) {
     const fromEmail =
       process.env.CATERING_FROM_EMAIL || process.env.SMTP_USER || toEmail;
 
-    // ✅ Send email
+    await transporter.verify();
     await transporter.sendMail({
       from: `"Veg Thali Club Catering" <${fromEmail}>`,
       to: toEmail,

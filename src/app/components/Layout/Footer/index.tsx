@@ -106,9 +106,7 @@ const Footer: FC = () => {
                     icon="solar:point-on-map-perspective-bold"
                     className="text-primary text-3xl lg:text-2xl inline-block me-2"
                   />
-                  <p className="text-black text-base">
-                    925 Filbert Street, Pennsylvania 18072
-                  </p>
+                  <p className="text-black text-base">Yash Shah</p>
                 </div>
                 <Link href="tel:+1(909)235-9814">
                   <div className="flex">
@@ -117,7 +115,7 @@ const Footer: FC = () => {
                       className="text-primary text-3xl lg:text-2xl inline-block me-2"
                     />
                     <p className="text-black/60 hover:text-black text-base">
-                      +1 (909) 235-9814
+                      +1 (437) 987-0230
                     </p>
                   </div>
                 </Link>
@@ -128,7 +126,7 @@ const Footer: FC = () => {
                       className="text-primary text-3xl lg:text-2xl inline-block me-2"
                     />
                     <p className="text-black/60 hover:text-black text-base">
-                      info@vegthaliclub.com
+                      vegthaliclub@gmail.com
                     </p>
                   </div>
                 </Link>

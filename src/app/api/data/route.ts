@@ -128,21 +128,21 @@ const FooterLinkData: FooterLinkType[] = [
     section: "Company",
     links: [
       { label: "Home", href: "/" },
-      { label: "About Us", href: "/#aboutus" },
+      // { label: "About Us", href: "/#aboutus" },
       { label: "Menu", href: "/#menu" },
       // { label: "Reserve Table", href: "/#reserve" },
     ],
   },
-  {
-    section: "Support",
-    links: [
-      { label: "Help/FAQ", href: "/" },
-      { label: "Press", href: "/" },
-      { label: "Affiliates", href: "/" },
-      { label: "Hotel owners", href: "/" },
-      { label: "Partners", href: "/" },
-    ],
-  },
+  // {
+  //   section: "Support",
+  //   links: [
+  //     { label: "Help/FAQ", href: "/" },
+  //     { label: "Press", href: "/" },
+  //     { label: "Affiliates", href: "/" },
+  //     { label: "Hotel owners", href: "/" },
+  //     { label: "Partners", href: "/" },
+  //   ],
+  // },
 ];
 
 export const GET = () => {

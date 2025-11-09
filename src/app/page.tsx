@@ -20,7 +20,7 @@ export default function Home() {
       <Expert />
       <Gallery />
       <ContactForm />
-      <Newsletter />
+      {/* <Newsletter /> */}
     </main>
   );
 }

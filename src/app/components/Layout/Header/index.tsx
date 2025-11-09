@@ -105,7 +105,7 @@ const Header: React.FC = () => {
                 icon="solar:phone-bold"
                 className="text-primary text-3xl lg:text-2xl inline-block me-2"
               />
-              +1(909) 235-9814
+              +1 (437) 987-0230
             </Link>
             {/* <button
               className='hidden lg:block text-primary duration-300 bg-primary/15 hover:text-white hover:bg-primary font-medium text-lg py-2 px-6 rounded-full hover:cursor-pointer'

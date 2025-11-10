@@ -605,7 +605,7 @@ const Gallery = () => {
             onClick={closeOrder}
           >
             <div
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl sm:max-h-[90vh] overflow-y-auto p-4 sm:p-6 relative"
+              className="bg-white rounded-3xl shadow-2xl w-[95vw] sm:w-full max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 relative"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -869,13 +869,13 @@ const Gallery = () => {
                   </h3>
 
                   {/* FORM FIELDS */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                     <div>
                       <label className="block text-sm text-[#7c1b14] mb-1">
                         Full Name
                       </label>
                       <input
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                        className="w-full rounded-xl border border-[#c04a40] px-3 py-2.5 text-sm sm:text-base outline-none"
                         placeholder="Enter your full name"
                         value={form.fullName}
                         onChange={(e) =>
@@ -888,7 +888,7 @@ const Gallery = () => {
                         Phone Number
                       </label>
                       <input
-                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                        className="w-full rounded-xl border border-[#c04a40] px-3 py-2.5 text-sm sm:text-base outline-none focus:ring-2 focus:ring-[#c04a40]/30"
                         placeholder="Enter your phone number"
                         value={form.phone}
                         onChange={(e) =>
@@ -1026,7 +1026,7 @@ const Gallery = () => {
                   )}
 
                   {/* TOTALS */}
-                  <div className="mt-6 bg-[#fff5f4] border border-[#f0c6c2] rounded-2xl p-4 text-sm sm:text-base">
+                  <div className="mt-6 bg-[#fff5f4] border border-[#f0c6c2] rounded-2xl p-3 md:p-4 text-sm md:text-base">
                     {selectedPackage.isWeightBased ? (
                       <>
                         <div className="flex justify-between">
@@ -1063,7 +1063,7 @@ const Gallery = () => {
                   </div>
 
                   {/* Checkout buttons */}
-                  <div className="mt-6 flex justify-between">
+                  <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-end sm:justify-between">
                     <button
                       onClick={prevStep}
                       className="px-5 py-2 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm"

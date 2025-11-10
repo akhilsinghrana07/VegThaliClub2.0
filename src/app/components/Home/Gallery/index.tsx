@@ -3,24 +3,26 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 
-/* -------------------- Types -------------------- */
+/* -----------------------------------
+   Types
+------------------------------------ */
 type StepConfig = {
   title: string;
   category?: keyof AddOnMenuType;
   maxSelections?: number;
   isBreadChoice?: boolean;
-  isWeightInput?: boolean; // NEW for Dhokla
+  isWeightInput?: boolean; // For Khaman/Dhokla
 };
 
 type PackageType = {
   name: string;
-  price: string;
+  price: string; // per-person for normal packages; per-kg for Dhokla
   src: string;
   description: string;
-  description2?: string; // ✅ Optional: used only for Khaman/Dhokla
+  description2?: string; // Used for Khaman/Dhokla extra content
   baseItems: string[];
   steps: StepConfig[];
-  isWeightBased?: boolean;
+  isWeightBased?: boolean; // true => Dhokla flow
 };
 
 type AddOnMenuType = {
@@ -33,15 +35,17 @@ type AddOnMenuType = {
 type FormDataType = {
   fullName: string;
   phone: string;
-  eventType: string;
-  date: string;
+  eventType: string; // used as Delivery Location / Address
+  date: string; // datetime-local string
   email: string;
-  partySize: number;
+  partySize: number; // used only for non-weight-based packages
   message: string;
-  weightKg?: number; // NEW for Gujju special
+  weightKg?: number; // used for Khaman/Dhokla
 };
 
-/* -------------------- IndexedDB helpers -------------------- */
+/* -----------------------------------
+   IndexedDB Helpers
+------------------------------------ */
 const DB_NAME = "catering-db";
 const DB_STORE = "catering-store";
 const DB_KEY = "in-progress";
@@ -93,8 +97,11 @@ async function idbClear(key: string) {
   db.close();
 }
 
-/* -------------------- Component -------------------- */
+/* -----------------------------------
+   Component
+------------------------------------ */
 const Gallery = () => {
+  /* State */
   const [isOrderOpen, setIsOrderOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPackage, setSelectedPackage] = useState<PackageType | null>(
@@ -103,9 +110,9 @@ const Gallery = () => {
   const [stepSelections, setStepSelections] = useState<
     Record<number, string[]>
   >({});
-  const [includeEcoSet, setIncludeEcoSet] = useState(false);
+  const [includeEcoSet, setIncludeEcoSet] = useState(false); // only for non-weight-based
   const [basePerPerson, setBasePerPerson] = useState<number>(0);
-  const ecoPerPerson = 1.49;
+  const ecoPerPerson = 1.49; // optional add-on for non-weight-based
   const [showCheckout, setShowCheckout] = useState(false);
 
   const [form, setForm] = useState<FormDataType>({
@@ -127,7 +134,7 @@ const Gallery = () => {
     type: "success" | "error";
   }>({ show: false, title: "", message: "", type: "success" });
 
-  /* -------------------- Menu Data -------------------- */
+  /* Data (menu) */
   const addOnMenu: AddOnMenuType = {
     vegetarianSnacks: [
       "Aloo Tikki",
@@ -164,12 +171,21 @@ const Gallery = () => {
     dessertChoices: ["Gajjar Halwa", "Gulab Jamun", "Suji Halwa"],
   };
 
+  // Bread options used when step.isBreadChoice is true
+  const breadOptions = [
+    "Tandoori Naan",
+    "Roti",
+    // "Plain Naan",
+    // "Lachha Paratha",
+    // "Tawa Roti",
+  ];
+
   const mainCourseChoices = useMemo(
     () => [...addOnMenu.vegetarianChoices, ...addOnMenu.paneerChoices],
     []
   );
 
-  /* -------------------- Package List -------------------- */
+  /* Packages */
   const galleryImages: PackageType[] = [
     {
       name: "2 Veg Snacks Package",
@@ -276,34 +292,31 @@ const Gallery = () => {
       description:
         "Soft and spongy Khaman/Dhokla — Perfect for any occasion. $25 per kg.",
       description2:
-        "Surati Nylon Khaman is a soft, spongy delicacy made from gram flour, perfectly balanced with a subtle sweetness and tang, lightly infused with mustard seeds, green chilies, and fresh coriander for an authentic Gujarati flavor experience.",
+        "Surati Nylon Khaman is a soft, spongy delicacy made from gram flour, balanced with subtle sweetness and tang, infused with mustard seeds, green chilies, and fresh coriander.",
       baseItems: [],
-      steps: [
-        {
-          title: "Enter quantity in kilograms",
-          isWeightInput: true,
-        },
-      ],
+      steps: [{ title: "Enter quantity in kilograms", isWeightInput: true }],
       isWeightBased: true,
     },
   ];
 
-  /* -------------------- Derived -------------------- */
+  /* Derived */
   const currentPkgStep: StepConfig | null =
     selectedPackage?.steps[currentStep - 1] ?? null;
-
-  const isSummaryStep =
-    selectedPackage && currentStep > selectedPackage.steps.length;
+  const isSummaryStep = selectedPackage
+    ? currentStep > selectedPackage.steps.length
+    : false;
 
   const perPerson = includeEcoSet
     ? basePerPerson + ecoPerPerson
     : basePerPerson;
+
   const subtotal = selectedPackage?.isWeightBased
-    ? form.weightKg! * parseFloat(selectedPackage.price)
+    ? (form.weightKg || 0) * parseFloat(selectedPackage.price)
     : perPerson * (form.partySize || 15);
+
   const grandTotal = subtotal;
 
-  /* -------------------- Persistence -------------------- */
+  /* Persistence */
   useEffect(() => {
     idbSet(DB_KEY, {
       selectedPackageName: selectedPackage?.name ?? null,
@@ -328,6 +341,7 @@ const Gallery = () => {
     (async () => {
       const data = await idbGet<any>(DB_KEY);
       if (!data) return;
+
       if (data.selectedPackageName) {
         const pkg = galleryImages.find(
           (p) => p.name === data.selectedPackageName
@@ -337,7 +351,8 @@ const Gallery = () => {
           setIsOrderOpen(true);
         }
       }
-      if (data.currentStep) setCurrentStep(data.currentStep);
+      if (typeof data.currentStep === "number")
+        setCurrentStep(data.currentStep);
       if (data.stepSelections) setStepSelections(data.stepSelections);
       if (typeof data.includeEcoSet === "boolean")
         setIncludeEcoSet(data.includeEcoSet);
@@ -346,9 +361,10 @@ const Gallery = () => {
       if (data.form) setForm(data.form);
       if (data.showCheckout) setShowCheckout(true);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* -------------------- Handlers -------------------- */
+  /* Handlers */
   const openOrder = (pkg: PackageType) => {
     setSelectedPackage(pkg);
     setIsOrderOpen(true);
@@ -357,6 +373,15 @@ const Gallery = () => {
     setIncludeEcoSet(false);
     setShowCheckout(false);
     setBasePerPerson(parseFloat(pkg.price));
+    setForm((prev) => ({
+      ...prev,
+      // for Dhokla ensure default weight
+      weightKg: pkg.isWeightBased ? prev.weightKg || 1 : prev.weightKg,
+      // reset party size for normal package
+      partySize: pkg.isWeightBased
+        ? prev.partySize
+        : Math.max(15, prev.partySize || 15),
+    }));
   };
 
   const closeOrder = async () => {
@@ -369,10 +394,11 @@ const Gallery = () => {
   const toggleSelection = (item: string, limit: number) => {
     setStepSelections((prev) => {
       const current = prev[currentStep] || [];
-      if (current.includes(item))
+      if (current.includes(item)) {
         return { ...prev, [currentStep]: current.filter((i) => i !== item) };
-      else if (current.length < limit)
+      } else if (current.length < limit) {
         return { ...prev, [currentStep]: [...current, item] };
+      }
       return prev;
     });
   };
@@ -394,7 +420,7 @@ const Gallery = () => {
     if (!selectedPackage) return;
     const totalSteps = selectedPackage.steps.length;
     if (currentStep < totalSteps) setCurrentStep((s) => s + 1);
-    else setCurrentStep(totalSteps + 1);
+    else setCurrentStep(totalSteps + 1); // -> Summary
   };
 
   const prevStep = () => {
@@ -405,40 +431,71 @@ const Gallery = () => {
     if (currentStep > 1) setCurrentStep((s) => s - 1);
   };
 
-  const submitAll = async () => {
-    if (!selectedPackage) return;
+  const proceedToCheckout = () => setShowCheckout(true);
 
-    if (
-      !selectedPackage.isWeightBased &&
-      (!form.fullName || !form.phone || !form.email || !form.date)
-    ) {
+  const validateForm = () => {
+    if (!form.fullName || !form.phone || !form.email || !form.date) {
       setAlertModal({
         show: true,
         title: "Incomplete Form",
         message: "Please fill in Full Name, Phone, Email, and Date.",
         type: "error",
       });
-      return;
+      return false;
     }
+    if (!selectedPackage?.isWeightBased && form.partySize < 15) {
+      setAlertModal({
+        show: true,
+        title: "Minimum Party Size",
+        message: "Party size must be at least 15.",
+        type: "error",
+      });
+      return false;
+    }
+    if (
+      selectedPackage?.isWeightBased &&
+      (!form.weightKg || form.weightKg <= 0)
+    ) {
+      setAlertModal({
+        show: true,
+        title: "Enter Weight",
+        message: "Please enter a valid weight (in kg) for Khaman/Dhokla.",
+        type: "error",
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const submitAll = async () => {
+    if (!selectedPackage) return;
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
+      const payload = {
+        package: selectedPackage.name,
+        isWeightBased: !!selectedPackage.isWeightBased,
+        unitPrice: parseFloat(selectedPackage.price),
+        baseItems: selectedPackage.baseItems,
+        steps: selectedPackage.steps.map((s, idx) => ({
+          title: s.title,
+          selections: stepSelections[idx + 1] || [],
+        })),
+        includeEcoSet: !selectedPackage.isWeightBased
+          ? includeEcoSet
+          : undefined,
+        perPerson: !selectedPackage.isWeightBased ? perPerson : undefined,
+        subtotal,
+        grandTotal,
+        weightKg: selectedPackage.isWeightBased ? form.weightKg : undefined,
+        form,
+      };
+
       const res = await fetch("/api/send-catering-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          package: selectedPackage.name,
-          baseItems: selectedPackage.baseItems,
-          steps: selectedPackage.steps.map((s, idx) => ({
-            title: s.title,
-            selections: stepSelections[idx + 1] || [],
-          })),
-          includeEcoSet,
-          perPerson,
-          subtotal,
-          grandTotal,
-          form,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) throw new Error("Failed to send request.");
@@ -452,7 +509,7 @@ const Gallery = () => {
       });
       await idbClear(DB_KEY);
       closeOrder();
-    } catch {
+    } catch (err) {
       setAlertModal({
         show: true,
         title: "Submission Error",
@@ -464,10 +521,7 @@ const Gallery = () => {
     }
   };
 
-  const proceedToCheckout = () => setShowCheckout(true);
-
-  /* -------------------- UI -------------------- */
-  /* -------------------- UI -------------------- */
+  /* UI */
   return (
     <section id="menu" className="scroll-mt-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -513,7 +567,6 @@ const Gallery = () => {
                 </p>
 
                 {pkg.isWeightBased ? (
-                  // ✅ Special info card for Nylon Khaman
                   <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
                     <p className="text-green-700 text-sm font-medium mb-2">
                       About this Dish:
@@ -558,177 +611,112 @@ const Gallery = () => {
               <button
                 onClick={closeOrder}
                 className="absolute top-3 right-4 text-gray-500 hover:text-primary text-2xl"
+                aria-label="Close"
               >
                 ✕
               </button>
 
-              {/* DHOKLA PACKAGE — SPECIAL CASE */}
-              {/* DHOKLA PACKAGE — SPECIAL CASE */}
-              {selectedPackage.isWeightBased ? (
-                <div className="text-center py-8">
-                  <h3 className="text-xl sm:text-2xl font-bold text-[#7c1b14] mb-2">
-                    {selectedPackage.name}
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    ${selectedPackage.price}/kg — Soft, spongy & delicious!
-                  </p>
-
-                  {/* About this Dish */}
-                  <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4 text-left max-w-md mx-auto">
-                    <p className="text-green-700 text-sm font-medium mb-1">
-                      About this Dish:
-                    </p>
-                    <p className="text-gray-700 text-sm leading-snug">
-                      {selectedPackage.description2}
-                    </p>
-                  </div>
-
-                  {/* Quantity */}
-                  <div className="mb-6">
-                    <label className="block text-sm text-gray-700 mb-2">
-                      Enter Quantity (in kilograms)
-                    </label>
-                    <input
-                      type="number"
-                      min={0.5}
-                      step={0.5}
-                      value={form.weightKg}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          weightKg: Math.max(0.5, Number(e.target.value || 1)),
-                        })
-                      }
-                      className="w-32 mx-auto border border-gray-300 rounded-full px-4 py-2 text-center text-lg"
+              {/* PROGRESS DOTS (Steps + Summary + Checkout) */}
+              <div className="flex justify-center gap-2 mb-6 mt-2">
+                {Array.from({
+                  length: selectedPackage.steps.length + 2, // + Summary + Checkout
+                }).map((_, idx) => {
+                  const active = showCheckout
+                    ? idx + 1 === selectedPackage.steps.length + 2
+                    : currentStep >= idx + 1 ||
+                      (isSummaryStep &&
+                        idx + 1 === selectedPackage.steps.length + 1);
+                  return (
+                    <div
+                      key={idx}
+                      className={clsx(
+                        "w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-transform",
+                        active ? "bg-primary scale-125" : "bg-gray-300"
+                      )}
                     />
-                    <p className="mt-3 text-lg font-semibold text-green-700">
-                      Total: $
-                      {(
-                        form.weightKg! * parseFloat(selectedPackage.price)
-                      ).toFixed(2)}
-                    </p>
-                  </div>
+                  );
+                })}
+              </div>
 
-                  {/* DELIVERY FORM */}
-                  <div className="text-left max-w-2xl mx-auto">
-                    <h4 className="text-lg font-semibold text-[#7c1b14] mb-3 text-center">
-                      Delivery Details
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm text-[#7c1b14] mb-1">
-                          Full Name
+              {/* STEP UI */}
+              {!showCheckout && currentPkgStep && !isSummaryStep && (
+                <div className="animate-slideIn">
+                  <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
+                    {currentPkgStep.title}
+                  </h3>
+
+                  {/* Weight Input Step (Dhokla) */}
+                  {currentPkgStep.isWeightInput && (
+                    <>
+                      {selectedPackage.description2 && (
+                        <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-4 text-left max-w-md mx-auto">
+                          <p className="text-green-700 text-sm font-medium mb-1">
+                            About this Dish:
+                          </p>
+                          <p className="text-gray-700 text-sm leading-snug">
+                            {selectedPackage.description2}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="text-center">
+                        <label className="block text-sm text-gray-700 mb-2">
+                          Enter Quantity (in kilograms)
                         </label>
                         <input
-                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                          placeholder="Enter your full name"
-                          value={form.fullName}
+                          type="number"
+                          min={0.5}
+                          step={0.5}
+                          value={form.weightKg}
                           onChange={(e) =>
-                            setForm({ ...form, fullName: e.target.value })
+                            setForm({
+                              ...form,
+                              weightKg: Math.max(
+                                0.5,
+                                Number(e.target.value || 1)
+                              ),
+                            })
                           }
+                          className="w-32 mx-auto border border-gray-300 rounded-full px-4 py-2 text-center text-lg"
                         />
+                        <p className="mt-3 text-lg font-semibold text-green-700">
+                          Total: $
+                          {(
+                            Number(form.weightKg || 0) *
+                            parseFloat(selectedPackage.price)
+                          ).toFixed(2)}
+                        </p>
                       </div>
-                      <div>
-                        <label className="block text-sm text-[#7c1b14] mb-1">
-                          Phone Number
-                        </label>
-                        <input
-                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                          placeholder="Enter your phone number"
-                          value={form.phone}
-                          onChange={(e) =>
-                            setForm({ ...form, phone: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm text-[#7c1b14] mb-1">
-                          Delivery Location / Address
-                        </label>
-                        <input
-                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                          placeholder="Enter delivery address"
-                          value={form.eventType}
-                          onChange={(e) =>
-                            setForm({ ...form, eventType: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm text-[#7c1b14] mb-1">
-                          Delivery Date & Time
-                        </label>
-                        <input
-                          type="datetime-local"
-                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                          value={form.date}
-                          onChange={(e) =>
-                            setForm({ ...form, date: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm text-[#7c1b14] mb-1">
-                          Email Address
-                        </label>
-                        <input
-                          type="email"
-                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                          placeholder="Enter your email"
-                          value={form.email}
-                          onChange={(e) =>
-                            setForm({ ...form, email: e.target.value })
-                          }
-                        />
-                      </div>
+                    </>
+                  )}
+
+                  {/* Bread Choice Step */}
+                  {currentPkgStep.isBreadChoice && (
+                    <div className="flex justify-center gap-3 sm:gap-4">
+                      {breadOptions.map((bread) => {
+                        const selected =
+                          (stepSelections[currentStep] || [])[0] === bread;
+                        return (
+                          <button
+                            key={bread}
+                            onClick={() => selectBread(bread)}
+                            className={clsx(
+                              "min-w-[140px] px-4 py-2 rounded-full text-xs sm:text-sm border transition-all",
+                              selected
+                                ? "bg-primary text-white"
+                                : "border-gray-300 hover:border-primary"
+                            )}
+                          >
+                            {bread}
+                          </button>
+                        );
+                      })}
                     </div>
+                  )}
 
-                    {/* SUBMIT BUTTON */}
-                    <div className="text-center mt-8">
-                      <button
-                        onClick={submitAll}
-                        disabled={loading}
-                        className={clsx(
-                          "px-8 py-2 rounded-full text-white font-medium text-sm",
-                          loading
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-[#7c1b14] hover:bg-[#a0241a]"
-                        )}
-                      >
-                        {loading ? "Submitting..." : "Submit Order"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* PROGRESS DOTS */}
-                  <div className="flex justify-center gap-2 mb-6 mt-6 sm:mt-0">
-                    {Array.from({
-                      length: selectedPackage.steps.length + 2,
-                    }).map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={clsx(
-                          "w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full",
-                          showCheckout
-                            ? idx + 1 === selectedPackage.steps.length + 2
-                              ? "bg-primary scale-125"
-                              : "bg-gray-300"
-                            : currentStep >= idx + 1
-                            ? "bg-primary scale-125"
-                            : "bg-gray-300"
-                        )}
-                      />
-                    ))}
-                  </div>
-
-                  {/* STEP / SUMMARY / CHECKOUT UI */}
-                  {!showCheckout && currentPkgStep && !isSummaryStep && (
-                    <div className="animate-slideIn">
-                      <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
-                        {currentPkgStep.title}
-                      </h3>
+                  {/* Generic Category Step (snacks/mains/desserts) */}
+                  {!currentPkgStep.isBreadChoice &&
+                    !currentPkgStep.isWeightInput && (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                         {(() => {
                           if (currentPkgStep.category === "vegetarianChoices")
@@ -746,7 +734,7 @@ const Gallery = () => {
                             onClick={() =>
                               toggleSelection(
                                 item,
-                                currentPkgStep.maxSelections!
+                                currentPkgStep.maxSelections || 0
                               )
                             }
                             className={clsx(
@@ -760,150 +748,304 @@ const Gallery = () => {
                           </button>
                         ))}
                       </div>
+                    )}
+
+                  {/* Selected count (only for maxSelections steps) */}
+                  {!currentPkgStep.isBreadChoice &&
+                    !currentPkgStep.isWeightInput && (
                       <p className="text-xs text-gray-500 text-center mt-3">
                         {stepSelections[currentStep]?.length || 0}/
                         {currentPkgStep.maxSelections} selected
                       </p>
-                    </div>
-                  )}
+                    )}
 
-                  {/* SUMMARY */}
-                  {!showCheckout && isSummaryStep && (
-                    <div className="animate-slideIn">
-                      <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
-                        Summary — {selectedPackage.name}
-                      </h3>
-                      <div className="bg-green-50 border border-green-100 rounded-xl p-4 mb-4 text-sm sm:text-base">
-                        <p className="text-green-700 font-medium mb-2 text-center">
-                          Included in Every Meal
+                  {/* Step Navigation */}
+                  <div className="flex justify-between items-center mt-6">
+                    {currentStep > 1 ? (
+                      <button
+                        onClick={prevStep}
+                        className="px-5 py-2 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm"
+                      >
+                        ← Back
+                      </button>
+                    ) : (
+                      <div />
+                    )}
+
+                    <button
+                      onClick={nextStep}
+                      disabled={!canProceedCurrent}
+                      className={clsx(
+                        "px-5 py-2 rounded-full text-white text-sm font-medium",
+                        !canProceedCurrent
+                          ? "bg-gray-300 cursor-not-allowed"
+                          : "bg-[#7c1b14] hover:bg-[#a0241a]"
+                      )}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* SUMMARY */}
+              {!showCheckout && isSummaryStep && selectedPackage && (
+                <div className="animate-slideIn">
+                  <h3 className="text-lg sm:text-xl font-semibold text-primary mb-4 text-center">
+                    Summary — {selectedPackage.name}
+                  </h3>
+
+                  <div className="bg-green-50 border border-green-100 rounded-xl p-4 mb-4 text-sm sm:text-base">
+                    {!selectedPackage.isWeightBased &&
+                      selectedPackage.baseItems.length > 0 && (
+                        <>
+                          <p className="text-green-700 font-medium mb-2 text-center">
+                            Included in Every Meal
+                          </p>
+                          <ul className="list-disc list-inside text-gray-700 mb-3">
+                            {selectedPackage.baseItems.map((i) => (
+                              <li key={i}>{i}</li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+
+                    {selectedPackage.steps.map((step, idx) => (
+                      <div key={idx} className="mb-2">
+                        <p className="font-medium text-gray-800">
+                          {step.title}
                         </p>
-                        <ul className="list-disc list-inside text-gray-700 mb-3">
-                          {selectedPackage.baseItems.map((i) => (
-                            <li key={i}>{i}</li>
-                          ))}
-                        </ul>
-                        {selectedPackage.steps.map((step, idx) => (
-                          <div key={idx} className="mb-2">
-                            <p className="font-medium text-gray-800">
-                              {step.title}
-                            </p>
-                            <p className="text-gray-600">
-                              {(stepSelections[idx + 1] || []).length
-                                ? stepSelections[idx + 1].join(", ")
-                                : "—"}
-                            </p>
-                          </div>
-                        ))}
+                        <p className="text-gray-600">
+                          {step.isWeightInput
+                            ? `${form.weightKg || 0} kg @ $${
+                                selectedPackage.price
+                              }/kg`
+                            : (stepSelections[idx + 1] || []).length
+                            ? stepSelections[idx + 1].join(", ")
+                            : "—"}
+                        </p>
                       </div>
-                      <div className="flex justify-end">
-                        <button
-                          onClick={proceedToCheckout}
-                          className="px-6 py-2 rounded-full bg-primary text-white hover:bg-primary/90 text-sm"
-                        >
-                          Confirm & Request →
-                        </button>
+                    ))}
+
+                    {/* Eco set info for non-weight-based */}
+                    {!selectedPackage.isWeightBased && (
+                      <div className="mt-2">
+                        <p className="font-medium text-gray-800">
+                          Eco Disposable Set
+                        </p>
+                        <p className="text-gray-600">
+                          {includeEcoSet
+                            ? `Yes (+$${ecoPerPerson.toFixed(2)}/person)`
+                            : "No"}
+                        </p>
                       </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <button
+                      onClick={prevStep}
+                      className="px-5 py-2 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm"
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      onClick={proceedToCheckout}
+                      className="px-6 py-2 rounded-full bg-primary text-white hover:bg-primary/90 text-sm"
+                    >
+                      Confirm & Request →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* CHECKOUT FORM (UNIFIED for all packages) */}
+              {showCheckout && selectedPackage && (
+                <div className="animate-slideIn pb-8">
+                  <h3 className="text-2xl sm:text-3xl font-bold text-center text-[#7c1b14] mb-6">
+                    {selectedPackage.isWeightBased
+                      ? "Delivery Form"
+                      : "Catering Form"}
+                  </h3>
+
+                  {/* FORM FIELDS */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-[#7c1b14] mb-1">
+                        Full Name
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                        placeholder="Enter your full name"
+                        value={form.fullName}
+                        onChange={(e) =>
+                          setForm({ ...form, fullName: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-[#7c1b14] mb-1">
+                        Phone Number
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                        placeholder="Enter your phone number"
+                        value={form.phone}
+                        onChange={(e) =>
+                          setForm({ ...form, phone: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-[#7c1b14] mb-1">
+                        Delivery Location / Address
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                        placeholder="Enter delivery address"
+                        value={form.eventType}
+                        onChange={(e) =>
+                          setForm({ ...form, eventType: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-[#7c1b14] mb-1">
+                        {selectedPackage.isWeightBased
+                          ? "Delivery Date & Time"
+                          : "Event Date & Time"}
+                      </label>
+                      <input
+                        type="datetime-local"
+                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                        value={form.date}
+                        onChange={(e) =>
+                          setForm({ ...form, date: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-[#7c1b14] mb-1">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                        placeholder="Enter your email"
+                        value={form.email}
+                        onChange={(e) =>
+                          setForm({ ...form, email: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    {/* Party size only for non-weight-based */}
+                    {!selectedPackage.isWeightBased && (
+                      <div>
+                        <label className="block text-sm text-[#7c1b14] mb-1">
+                          Party Size (Min 15)
+                        </label>
+                        <input
+                          type="number"
+                          min={15}
+                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                          value={form.partySize}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              partySize: Math.max(
+                                15,
+                                Number(e.target.value || 15)
+                              ),
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {/* Weight display (read-only) for Dhokla on checkout */}
+                    {selectedPackage.isWeightBased && (
+                      <div>
+                        <label className="block text-sm text-[#7c1b14] mb-1">
+                          Quantity (kg)
+                        </label>
+                        <input
+                          type="number"
+                          min={0.5}
+                          step={0.5}
+                          className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                          value={form.weightKg}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              weightKg: Math.max(
+                                0.5,
+                                Number(e.target.value || 1)
+                              ),
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {/* Optional message */}
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm text-[#7c1b14] mb-1">
+                        Additional Notes
+                      </label>
+                      <textarea
+                        rows={3}
+                        className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
+                        placeholder="Anything we should know? Allergies, special instructions, gate info, etc."
+                        value={form.message}
+                        onChange={(e) =>
+                          setForm({ ...form, message: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Eco Set checkbox only for non-weight-based */}
+                  {!selectedPackage.isWeightBased && (
+                    <div className="mt-4 flex items-center gap-3">
+                      <input
+                        id="eco-set"
+                        type="checkbox"
+                        checked={includeEcoSet}
+                        onChange={(e) => setIncludeEcoSet(e.target.checked)}
+                        className="w-5 h-5 accent-[#7c1b14]"
+                      />
+                      <label
+                        htmlFor="eco-set"
+                        className="text-sm text-gray-700"
+                      >
+                        Add Eco Disposable Set (+${ecoPerPerson.toFixed(2)}
+                        /person)
+                      </label>
                     </div>
                   )}
 
-                  {/* CHECKOUT FORM */}
-                  {showCheckout && (
-                    <div className="animate-slideIn pb-8">
-                      <h3 className="text-2xl sm:text-3xl font-bold text-center text-[#7c1b14] mb-6">
-                        Catering Form
-                      </h3>
-                      {/* FORM FIELDS */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm text-[#7c1b14] mb-1">
-                            Full Name
-                          </label>
-                          <input
-                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                            placeholder="Enter your full name"
-                            value={form.fullName}
-                            onChange={(e) =>
-                              setForm({ ...form, fullName: e.target.value })
-                            }
-                          />
+                  {/* TOTALS */}
+                  <div className="mt-6 bg-[#fff5f4] border border-[#f0c6c2] rounded-2xl p-4 text-sm sm:text-base">
+                    {selectedPackage.isWeightBased ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Unit Price</span>
+                          <span>
+                            ${parseFloat(selectedPackage.price).toFixed(2)}/kg
+                          </span>
                         </div>
-                        <div>
-                          <label className="block text-sm text-[#7c1b14] mb-1">
-                            Phone Number
-                          </label>
-                          <input
-                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                            placeholder="Enter your phone number"
-                            value={form.phone}
-                            onChange={(e) =>
-                              setForm({ ...form, phone: e.target.value })
-                            }
-                          />
+                        <div className="flex justify-between">
+                          <span>Quantity</span>
+                          <span>{(form.weightKg || 0).toFixed(2)} kg</span>
                         </div>
-                        <div>
-                          <label className="block text-sm text-[#7c1b14] mb-1">
-                            Delivery Location / Address
-                          </label>
-                          <input
-                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                            placeholder="Enter delivery address"
-                            value={form.eventType}
-                            onChange={(e) =>
-                              setForm({ ...form, eventType: e.target.value })
-                            }
-                          />
+                        <div className="flex justify-between font-semibold text-lg mt-1">
+                          <span>Total</span>
+                          <span>${grandTotal.toFixed(2)}</span>
                         </div>
-                        <div>
-                          <label className="block text-sm text-[#7c1b14] mb-1">
-                            Event Date & Time
-                          </label>
-                          <input
-                            type="datetime-local"
-                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                            value={form.date}
-                            onChange={(e) =>
-                              setForm({ ...form, date: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-[#7c1b14] mb-1">
-                            Email Address
-                          </label>
-                          <input
-                            type="email"
-                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                            placeholder="Enter your email"
-                            value={form.email}
-                            onChange={(e) =>
-                              setForm({ ...form, email: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-[#7c1b14] mb-1">
-                            Party Size (Min 15)
-                          </label>
-                          <input
-                            type="number"
-                            min={15}
-                            className="w-full rounded-xl border border-[#c04a40] px-4 py-3 outline-none"
-                            value={form.partySize}
-                            onChange={(e) =>
-                              setForm({
-                                ...form,
-                                partySize: Math.max(
-                                  15,
-                                  Number(e.target.value || 15)
-                                ),
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      {/* TOTALS */}
-                      <div className="mt-6 bg-[#fff5f4] border border-[#f0c6c2] rounded-2xl p-4 text-sm sm:text-base">
+                      </>
+                    ) : (
+                      <>
                         <div className="flex justify-between">
                           <span>Per person</span>
                           <span>${perPerson.toFixed(2)}</span>
@@ -916,25 +1058,38 @@ const Gallery = () => {
                           <span>Total</span>
                           <span>${grandTotal.toFixed(2)}</span>
                         </div>
-                      </div>
+                      </>
+                    )}
+                  </div>
 
-                      <div className="mt-6 flex justify-end">
-                        <button
-                          onClick={submitAll}
-                          disabled={loading || form.partySize < 15}
-                          className={clsx(
-                            "px-6 py-2 rounded-full text-white text-sm font-medium",
-                            form.partySize < 15 || loading
-                              ? "bg-gray-300 cursor-not-allowed"
-                              : "bg-[#7c1b14] hover:bg-[#a0241a]"
-                          )}
-                        >
-                          {loading ? "Submitting..." : "Submit Request"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
+                  {/* Checkout buttons */}
+                  <div className="mt-6 flex justify-between">
+                    <button
+                      onClick={prevStep}
+                      className="px-5 py-2 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm"
+                    >
+                      ← Back
+                    </button>
+
+                    <button
+                      onClick={submitAll}
+                      disabled={
+                        loading ||
+                        (!selectedPackage.isWeightBased && form.partySize < 15)
+                      }
+                      className={clsx(
+                        "px-6 py-2 rounded-full text-white text-sm font-medium",
+                        (!selectedPackage.isWeightBased &&
+                          form.partySize < 15) ||
+                          loading
+                          ? "bg-gray-300 cursor-not-allowed"
+                          : "bg-[#7c1b14] hover:bg-[#a0241a]"
+                      )}
+                    >
+                      {loading ? "Submitting..." : "Submit Request"}
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>

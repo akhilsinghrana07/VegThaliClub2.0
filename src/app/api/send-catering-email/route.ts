@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
-export const runtime = "nodejs"; // important: not edge
+export const runtime = "nodejs"; // make sure it's not Edge
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     const isWeightOrder = !!form.weightKg && Number(form.weightKg) > 0;
 
-    /* ----------------- HTML EMAIL TEMPLATE ----------------- */
+    /* -------------------- HTML EMAIL TEMPLATE -------------------- */
     const html = `
       <h2>🍽️ New Catering Request</h2>
       <h3>Package</h3>
@@ -84,33 +84,44 @@ export async function POST(req: NextRequest) {
       </p>
     `;
 
-    /* ----------------- ENV VALIDATION ----------------- */
-    const { SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS } =
-      process.env;
+    /* -------------------- ENV or DEFAULTS -------------------- */
+    const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
+    const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
+    const SMTP_SECURE =
+      String(process.env.SMTP_SECURE || "true").toLowerCase() === "true";
 
-    if (!SMTP_USER || !SMTP_PASS) {
-      throw new Error(
-        "SMTP credentials missing. Please set SMTP_USER and SMTP_PASS in environment variables."
-      );
-    }
+    // ✅ fallback hardcoded credentials (safe only for testing)
+    const SMTP_USER = process.env.SMTP_USER || "vegthaliclub@gmail.com";
+    const SMTP_PASS = process.env.SMTP_PASS || "aytdpcxroawahtlx";
 
-    /* ----------------- SMTP CONFIG ----------------- */
+    const CATERING_TO_EMAIL =
+      process.env.CATERING_TO_EMAIL || "vegthaliclub@gmail.com";
+    const CATERING_FROM_EMAIL =
+      process.env.CATERING_FROM_EMAIL || "vegthaliclub@gmail.com";
+
+    /* -------------------- SMTP CONFIG -------------------- */
     const baseConfig = {
-      host: SMTP_HOST || "smtp.gmail.com",
-      port: Number(SMTP_PORT || 465),
-      secure: String(SMTP_SECURE || "true") === "true", // SSL by default
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
       auth: {
         user: SMTP_USER,
         pass: SMTP_PASS,
       },
     };
 
+    console.log("📧 Using SMTP:", {
+      host: baseConfig.host,
+      port: baseConfig.port,
+      user: baseConfig.auth.user,
+    });
+
     let transporter = nodemailer.createTransport(baseConfig);
 
     try {
       await transporter.verify();
     } catch (err) {
-      console.warn("SSL verification failed. Retrying with STARTTLS...");
+      console.warn("⚠️ SSL verification failed, retrying with STARTTLS...");
       transporter = nodemailer.createTransport({
         ...baseConfig,
         port: 587,
@@ -120,13 +131,10 @@ export async function POST(req: NextRequest) {
       await transporter.verify();
     }
 
-    /* ----------------- SEND EMAIL ----------------- */
-    const toEmail = process.env.CATERING_TO_EMAIL || SMTP_USER;
-    const fromEmail = process.env.CATERING_FROM_EMAIL || SMTP_USER;
-
+    /* -------------------- SEND EMAIL -------------------- */
     await transporter.sendMail({
-      from: `"Veg Thali Club Catering" <${fromEmail}>`,
-      to: toEmail,
+      from: `"Veg Thali Club Catering" <${CATERING_FROM_EMAIL}>`,
+      to: CATERING_TO_EMAIL,
       subject: `🥗 New Catering Request — ${pkg} — ${
         form.fullName || "Unknown"
       }`,
@@ -134,6 +142,7 @@ export async function POST(req: NextRequest) {
       replyTo: form.email || undefined,
     });
 
+    console.log("✅ Catering email sent successfully!");
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("❌ Email send failed:", err);

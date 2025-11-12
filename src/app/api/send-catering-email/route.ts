@@ -1,9 +1,8 @@
-// app/api/send-catering-email/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
-export const runtime = "nodejs"; // ✅ ensure NOT edge
-export const dynamic = "force-dynamic"; // ✅ deploy as a function, not static
+export const runtime = "nodejs"; // important: not edge
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +20,7 @@ export async function POST(req: NextRequest) {
 
     const isWeightOrder = !!form.weightKg && Number(form.weightKg) > 0;
 
+    /* ----------------- HTML EMAIL TEMPLATE ----------------- */
     const html = `
       <h2>🍽️ New Catering Request</h2>
       <h3>Package</h3>
@@ -36,25 +36,23 @@ export async function POST(req: NextRequest) {
 
       ${
         baseItems.length
-          ? `
-      <h3>Base Items</h3>
-      <ul>${baseItems.map((b: string) => `<li>${b}</li>`).join("")}</ul>`
+          ? `<h3>Base Items</h3><ul>${baseItems
+              .map((b: string) => `<li>${b}</li>`)
+              .join("")}</ul>`
           : ""
       }
 
       ${
         steps.length
-          ? `
-      <h3>Selections</h3>
-      ${steps
-        .map(
-          (s: any) => `
-          <p>
-            <strong>${s.title}</strong><br/>
-            ${s.selections?.length ? s.selections.join(", ") : "—"}
-          </p>`
-        )
-        .join("")}`
+          ? `<h3>Selections</h3>${steps
+              .map(
+                (s: any) => `
+                <p>
+                  <strong>${s.title}</strong><br/>
+                  ${s.selections?.length ? s.selections.join(", ") : "—"}
+                </p>`
+              )
+              .join("")}`
           : ""
       }
 
@@ -86,24 +84,35 @@ export async function POST(req: NextRequest) {
       </p>
     `;
 
-    // Try 465 (SSL) first, then fall back to 587 (STARTTLS) if needed
-    const smtpConfig = {
-      host: process.env.SMTP_HOST || "smtp.gmail.com",
-      port: Number(process.env.SMTP_PORT || 465),
-      secure: String(process.env.SMTP_SECURE || "true") === "true", // 465=true, 587=false
+    /* ----------------- ENV VALIDATION ----------------- */
+    const { SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS } =
+      process.env;
+
+    if (!SMTP_USER || !SMTP_PASS) {
+      throw new Error(
+        "SMTP credentials missing. Please set SMTP_USER and SMTP_PASS in environment variables."
+      );
+    }
+
+    /* ----------------- SMTP CONFIG ----------------- */
+    const baseConfig = {
+      host: SMTP_HOST || "smtp.gmail.com",
+      port: Number(SMTP_PORT || 465),
+      secure: String(SMTP_SECURE || "true") === "true", // SSL by default
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS, // Gmail App Password if using Gmail
+        user: SMTP_USER,
+        pass: SMTP_PASS,
       },
     };
 
-    let transporter = nodemailer.createTransport(smtpConfig);
+    let transporter = nodemailer.createTransport(baseConfig);
+
     try {
       await transporter.verify();
-    } catch {
-      // fallback to STARTTLS/587
+    } catch (err) {
+      console.warn("SSL verification failed. Retrying with STARTTLS...");
       transporter = nodemailer.createTransport({
-        ...smtpConfig,
+        ...baseConfig,
         port: 587,
         secure: false,
         requireTLS: true,
@@ -111,10 +120,9 @@ export async function POST(req: NextRequest) {
       await transporter.verify();
     }
 
-    const toEmail =
-      process.env.CATERING_TO_EMAIL || "akhilsinghrana729@gmail.com";
-    const fromEmail =
-      process.env.CATERING_FROM_EMAIL || process.env.SMTP_USER || toEmail;
+    /* ----------------- SEND EMAIL ----------------- */
+    const toEmail = process.env.CATERING_TO_EMAIL || SMTP_USER;
+    const fromEmail = process.env.CATERING_FROM_EMAIL || SMTP_USER;
 
     await transporter.sendMail({
       from: `"Veg Thali Club Catering" <${fromEmail}>`,
@@ -130,7 +138,11 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("❌ Email send failed:", err);
     return NextResponse.json(
-      { success: false, message: err?.message, stack: err?.stack },
+      {
+        success: false,
+        message: err?.message || "Email send failed",
+        stack: err?.stack,
+      },
       { status: 500 }
     );
   }
